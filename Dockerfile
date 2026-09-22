@@ -38,7 +38,7 @@ COPY --from=builder /app/package.json ./package.json
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN chmod +x ./docker-entrypoint.sh \
-    && mkdir -p public/uploads public/generados \
+    && mkdir -p public/uploads public/generados data \
     && chown -R nextjs:nodejs /app
 
 USER nextjs
