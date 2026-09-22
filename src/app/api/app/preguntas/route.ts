@@ -9,6 +9,7 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { tokenAppValido } from "@/lib/tokenApp";
 
 type PreguntaApp = {
   id: number;
@@ -22,13 +23,6 @@ type PreguntaApp = {
   categoria: string;
   modulo: string;
 };
-
-function tokenValido(request: NextRequest): boolean {
-  const esperado = process.env.APP_API_TOKEN;
-  if (!esperado) return false;
-  const recibido = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return recibido === esperado;
-}
 
 function leerOpciones(valor: string): string[] {
   try {
@@ -63,7 +57,7 @@ async function asignarIdsFaltantes() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!tokenValido(request)) {
+  if (!tokenAppValido(request)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 

@@ -364,6 +364,10 @@ model Visita {
   // Última vez que se generó un informe (Generar Formatos) para esta visita;
   // null = todavía no se ha gestionado ningún informe.
   informeGeneradoEn DateTime?
+  // Visitas enviadas desde la app móvil: nombre de la carpeta local de la
+  // visita en el equipo. Si la app reenvía la misma visita, se actualiza en
+  // vez de duplicarse. Null para visitas creadas en el panel.
+  idEnvioApp        String?     @unique
   respuestas        Respuesta[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
