@@ -16,6 +16,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# prisma.config.ts exige DATABASE_URL; en la compilación basta un valor de relleno.
+# La URL real llega en tiempo de ejecución desde las variables de Easypanel.
+ENV DATABASE_URL=file:/tmp/build.db
 RUN npx prisma generate
 RUN npm run build
 
