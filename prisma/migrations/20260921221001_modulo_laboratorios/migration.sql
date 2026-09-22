@@ -1,0 +1,25 @@
+-- CreateTable
+CREATE TABLE "Laboratorio" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "zodeId" TEXT NOT NULL,
+    "municipioId" TEXT NOT NULL,
+    "institucionId" TEXT NOT NULL,
+    "sedeId" TEXT NOT NULL,
+    "operadorId" TEXT,
+    "esquemaId" TEXT NOT NULL,
+    "fechaTomaMuestra" DATETIME NOT NULL,
+    "nombreLaboratorio" TEXT NOT NULL,
+    "resultado" TEXT NOT NULL,
+    "fechaResultado" DATETIME NOT NULL,
+    "observaciones" TEXT,
+    "archivoUrl" TEXT NOT NULL,
+    "archivoNombre" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Laboratorio_zodeId_fkey" FOREIGN KEY ("zodeId") REFERENCES "Zode" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Laboratorio_municipioId_fkey" FOREIGN KEY ("municipioId") REFERENCES "Municipio" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Laboratorio_institucionId_fkey" FOREIGN KEY ("institucionId") REFERENCES "Institucion" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Laboratorio_sedeId_fkey" FOREIGN KEY ("sedeId") REFERENCES "Sede" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Laboratorio_operadorId_fkey" FOREIGN KEY ("operadorId") REFERENCES "Operador" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "Laboratorio_esquemaId_fkey" FOREIGN KEY ("esquemaId") REFERENCES "Esquema" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);

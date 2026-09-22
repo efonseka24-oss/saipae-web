@@ -1,0 +1,420 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Usuario {
+  id                String         @id @default(cuid())
+  usuario           String         @unique
+  clave             String
+  nombre            String
+  // Código de verificación para reiniciar la clave sin sesión iniciada.
+  cedula            String         @unique @default("")
+  // Si es false, el usuario no puede iniciar sesión (lo controla el administrador).
+  activo            Boolean        @default(true)
+  // Datos personales usados como responsable de respuestas PQRS: cargo
+  // impreso y firma escaneada que se insertan en la carta generada.
+  cargo             String?
+  firmaUrl          String?
+  // Módulos del panel que puede ver este usuario (JSON-encoded string[] de
+  // ModuloId, ver web/src/lib/modulos.ts). Se guarda la lista explícita (no
+  // "vacío = todos") para que no haya ambigüedad entre "sin configurar" y
+  // "sin acceso a nada"; los usuarios nuevos y los ya existentes (vía
+  // migración) parten con todos los módulos marcados.
+  modulosPermitidos String         @default("[]")
+  peticionesPqrs    PeticionPqrs[]
+}
+
+// Datos de la empresa dueña del sistema (registro único / singleton: siempre
+// se lee y actualiza el mismo id "empresa").
+model DatosEmpresa {
+  id                       String    @id @default("empresa")
+  nit                      String    @default("")
+  razonSocial              String    @default("")
+  nombreComercial          String?
+  direccion                String?
+  ciudad                   String?
+  telefono                 String?
+  correo                   String?
+  sitioWeb                 String?
+  logoUrl                  String?
+  membreteUrl              String? // Imagen de membrete (encabezado) para reportes/formatos
+  // Respaldo para la carta PQRS cuando el usuario responsable no tiene cargo
+  // propio cargado: cargo del representante legal de la empresa.
+  representanteLegalNombre String?
+  representanteLegalCargo  String?
+  // Vigencia de los dos proyectos que enmarcan el sistema: la interventoría
+  // (este contrato) y el PAE (Programa de Alimentación Escolar) que se
+  // supervisa. Sirven de referencia para los informes de gestión.
+  fechaInicioInterventoria DateTime?
+  fechaFinInterventoria    DateTime?
+  fechaInicioPae           DateTime?
+  fechaFinPae              DateTime?
+  updatedAt                DateTime  @updatedAt
+}
+
+model Esquema {
+  id           String          @id @default(cuid())
+  nombre       String          @unique
+  descripcion  String?
+  modulos      ModuloEsquema[]
+  visitas      Visita[]
+  plantillas   Plantilla[]
+  laboratorios Laboratorio[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+// Configuración editable del formato de informe (Word). Una plantilla puede
+// reutilizarse en varios esquemas a la vez (ej. "Plantilla Visitas" sirve
+// para Bodega, Bodega Administrativa, RI, CCT y RPS); también puede no tener
+// ningún esquema vinculado todavía (plantillas nuevas tipo "Plan de mejora",
+// "Informe mensual", etc. que se conectan después). El cuerpo (membrete,
+// tabla por módulo con ítems/valores/totales) se arma de forma automática a
+// partir de cada esquema vinculado; aquí solo se guarda lo que el
+// administrador puede personalizar "tipo Word".
+model Plantilla {
+  id                    String    @id @default(cuid())
+  esquemas              Esquema[]
+  nombre                String
+  // "VISITA" (formato normal por módulos, excluye preguntas de materia
+  // prima/organoléptico) | "MATERIA_PRIMA" | "ORGANOLEPTICO" (formato
+  // dedicado: junta esas preguntas de TODOS los módulos del esquema,
+  // vengan de donde vengan, y las saca de las plantillas de tipo VISITA).
+  tipo                  String    @default("VISITA")
+  versionFormato        String    @default("")
+  // Bloque de texto enriquecido (título, objetivo, criterios de evaluación,
+  // etc.) que va debajo de la línea de NIT/correo/versión y antes de los
+  // módulos. Se guarda como JSON de párrafos: [{ texto: [{t,b,i,u}], lista }]
+  descripcionVisitaJson String    @default("[]")
+  // Diseño del formato: colores/márgenes (globales a la plantilla) y, por
+  // cada esquema vinculado, qué módulos/preguntas se muestran y en qué orden
+  // (independiente del orden real usado en Tabulación). JSON, ver
+  // web/src/lib/plantillaConfig.ts.
+  configJson            String    @default("{}")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// Sección dentro de un esquema (ej. dentro de "Bodega": "Personal Manipulador
+// de Alimentos", "Datos Personales", ...). Agrupa preguntas relacionadas.
+model ModuloEsquema {
+  id          String     @id @default(cuid())
+  esquema     Esquema    @relation(fields: [esquemaId], references: [id], onDelete: Cascade)
+  esquemaId   String
+  nombre      String
+  descripcion String?
+  orden       Int        @default(0)
+  preguntas   Pregunta[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([esquemaId, nombre])
+}
+
+// Nota: SQLite no soporta `enum` en Prisma, así que clase/tipo/validacion/
+// naturalezaOpciones/generarSubPreguntasAuto son String validados en la capa
+// de aplicación (ver web/src/lib/preguntas.ts):
+//   clase                  -> "PRINCIPAL" | "SECUNDARIA"
+//   tipo                   -> "TEXTO_LIBRE" | "NUMERO" | "SELECCION_MULTIPLE" | "FOTO" | "ARCHIVO" | "FIRMA"
+//   validacion             -> "NINGUNA" | "EMAIL" | "NUMERO" | "TELEFONO" | "FECHA" | "HORA"
+//   naturalezaOpciones     -> "CUALITATIVA" | "CUANTITATIVA" (solo aplica si tipo = SELECCION_MULTIPLE)
+//   generarSubPreguntasAuto -> "NINGUNA" | "EVIDENCIAS" | "MATERIA_PRIMA" | "ORGANOLEPTICO"
+//     (replica exactamente los grupos fijos que genera la app móvil en
+//     EncuestaUtils.kt al activar una pregunta principal; solo aplica una
+//     vez, al crear la pregunta, y crea las subpreguntas reales asociadas.)
+model Pregunta {
+  id                      String        @id @default(cuid())
+  modulo                  ModuloEsquema @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  moduloId                String
+  texto                   String
+  clase                   String
+  padre                   Pregunta?     @relation("SubPreguntas", fields: [padreId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  padreId                 String?
+  subPreguntas            Pregunta[]    @relation("SubPreguntas")
+  tipo                    String
+  opciones                String // JSON-encoded string[] (SQLite no soporta arrays nativos)
+  naturalezaOpciones      String        @default("CUALITATIVA")
+  validacion              String        @default("NINGUNA")
+  obligatoria             Boolean       @default(true)
+  orden                   Int           @default(0)
+  generarSubPreguntasAuto String        @default("NINGUNA")
+
+  // Salto condicional (mismo mecanismo que "saltarSi" en la app móvil): si la
+  // respuesta de esta pregunta principal es exactamente `saltarSiRespuesta`,
+  // el flujo salta directo a `saltarHastaPregunta`, rellenando las preguntas
+  // principales que quedan en medio con `saltarRellenarCon`.
+  saltarSiRespuesta     String?
+  saltarHastaPregunta   Pregunta?  @relation("SaltoCondicional", fields: [saltarHastaPreguntaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  saltarHastaPreguntaId String?
+  saltosQueApuntanAqui  Pregunta[] @relation("SaltoCondicional")
+  saltarRellenarCon     String?
+
+  respuestas Respuesta[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Registro: catálogo jerárquico de ubicaciones/entidades. Cada nivel
+// pide explícitamente solo a su padre inmediato; los ancestros más arriba
+// (ej. el departamento de una institución) se derivan siguiendo la cadena de
+// relaciones en vez de guardarse duplicados.
+// ---------------------------------------------------------------------------
+
+model Departamento {
+  id        String   @id @default(cuid())
+  nombre    String   @unique
+  lotes     Lote[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Agrupa varios zodes bajo un departamento (ej. un lote de contratación que
+// cubre varios zodes). Un Operador se asigna a un Zode y, por esa vía, hereda
+// automáticamente su Lote (y el Departamento del Lote).
+model Lote {
+  id             String       @id @default(cuid())
+  nombre         String
+  departamento   Departamento @relation(fields: [departamentoId], references: [id])
+  departamentoId String
+  zodes          Zode[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([departamentoId, nombre])
+}
+
+model Zode {
+  id           String        @id @default(cuid())
+  nombre       String
+  lote         Lote          @relation(fields: [loteId], references: [id])
+  loteId       String
+  municipios   Municipio[]
+  operadores   Operador[]
+  laboratorios Laboratorio[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([loteId, nombre])
+}
+
+model Municipio {
+  id            String        @id @default(cuid())
+  nombre        String
+  zode          Zode          @relation(fields: [zodeId], references: [id])
+  zodeId        String
+  instituciones Institucion[]
+  laboratorios  Laboratorio[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([zodeId, nombre])
+}
+
+model Institucion {
+  id            String        @id @default(cuid())
+  numeroDane    String        @unique
+  nombre        String
+  municipio     Municipio     @relation(fields: [municipioId], references: [id])
+  municipioId   String
+  // Si está habilitada para el PAE y qué tipo(s) de ración recibe. Puede
+  // tener las 3 a la vez, así que tiposRacion es un JSON-encoded string[]
+  // (ej. ["RPS","RI","CCT"]) — SQLite no soporta arrays nativos.
+  habilitadaPae Boolean       @default(true)
+  tiposRacion   String        @default("[]")
+  sedes         Sede[]
+  actasCaes     ActaCaes[]
+  laboratorios  Laboratorio[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Sede {
+  id            String        @id @default(cuid())
+  numeroDane    String        @unique
+  nombre        String
+  institucion   Institucion   @relation(fields: [institucionId], references: [id])
+  institucionId String
+  // Misma idea que en Institucion: una sede puede habilitarse aparte y
+  // recibir cualquier combinación de RPS/RI/CCT.
+  habilitadaPae Boolean       @default(true)
+  tiposRacion   String        @default("[]")
+  laboratorios  Laboratorio[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Operador {
+  id                String        @id @default(cuid())
+  nit               String        @unique
+  nombreRazonSocial String
+  zode              Zode          @relation(fields: [zodeId], references: [id])
+  zodeId            String
+  bodegas           Bodega[]
+  laboratorios      Laboratorio[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model Bodega {
+  id         String   @id @default(cuid())
+  nombre     String
+  operador   Operador @relation(fields: [operadorId], references: [id])
+  operadorId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([operadorId, nombre])
+}
+
+// ---------------------------------------------------------------------------
+// Módulo CAES (Comité de Alimentación Escolar): se maneja por Actas (de
+// conformación o de reunión) asociadas a una institución, cada una con su
+// PDF cargado.
+// ---------------------------------------------------------------------------
+model ActaCaes {
+  id            String      @id @default(cuid())
+  tipo          String // "CONFORMACION" | "REUNION"
+  institucion   Institucion @relation(fields: [institucionId], references: [id])
+  institucionId String
+  fecha         DateTime
+  archivoUrl    String
+  archivoNombre String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Laboratorios: registra la toma de muestras y su resultado
+// (favorable/desfavorable) para una sede puntual, ubicada siguiendo la cadena
+// Zode → Municipio → Institución → Sede. Lote y Operador no se guardan aparte
+// porque se derivan siempre del Zode elegido (Zode.lote y Zode.operadores);
+// el "tipo de visita" reutiliza el catálogo de Esquemas ya existente
+// (Bodega, Bodega Administrativa, CCT, RI, RPS).
+// ---------------------------------------------------------------------------
+model Laboratorio {
+  id                String                      @id @default(cuid())
+  zode              Zode                        @relation(fields: [zodeId], references: [id])
+  zodeId            String
+  municipio         Municipio                   @relation(fields: [municipioId], references: [id])
+  municipioId       String
+  institucion       Institucion                 @relation(fields: [institucionId], references: [id])
+  institucionId     String
+  sede              Sede                        @relation(fields: [sedeId], references: [id])
+  sedeId            String
+  // Puede quedar sin asignar si el zode todavía no tiene operador registrado.
+  operador          Operador?                   @relation(fields: [operadorId], references: [id])
+  operadorId        String?
+  esquema           Esquema                     @relation(fields: [esquemaId], references: [id]) // "Tipo de visita"
+  esquemaId         String
+  fechaTomaMuestra  DateTime
+  nombreLaboratorio String
+  resultado         String // "FAVORABLE" | "DESFAVORABLE"
+  fechaResultado    DateTime
+  observaciones     String?
+  archivoUrl        String
+  archivoNombre     String
+  detalles          DetalleMuestraLaboratorio[]
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+}
+
+// Hasta 10 líneas de detalle por muestra (ej. distintos productos/exámenes
+// tomados en la misma visita). Ninguno de los 3 campos es obligatorio: se
+// guardan solo las filas que el usuario llenó. `orden` (1-10) fija su
+// posición en el formulario.
+model DetalleMuestraLaboratorio {
+  id            String      @id @default(cuid())
+  laboratorio   Laboratorio @relation(fields: [laboratorioId], references: [id], onDelete: Cascade)
+  laboratorioId String
+  orden         Int
+  producto      String?
+  examen        String?
+  cumplimiento  String? // "CUMPLE" | "NO_CUMPLE"
+
+  @@unique([laboratorioId, orden])
+}
+
+// Una visita/inspección real, diligenciada contra un esquema. Sustituye a la
+// hoja de Google Sheets como fuente de datos: de aquí se arman los informes.
+model Visita {
+  id                String      @id @default(cuid())
+  esquema           Esquema     @relation(fields: [esquemaId], references: [id])
+  esquemaId         String
+  fecha             DateTime
+  operador          String?
+  municipio         String?
+  institucion       String?
+  sede              String?
+  zodes             String?
+  lote              String?
+  nit               String?
+  estado            String      @default("EN_PROGRESO") // "EN_PROGRESO" | "FINALIZADA"
+  // Última vez que se generó un informe (Generar Formatos) para esta visita;
+  // null = todavía no se ha gestionado ningún informe.
+  informeGeneradoEn DateTime?
+  respuestas        Respuesta[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Respuesta de una Visita a una Pregunta puntual. `valor` sirve para texto
+// libre/número/opción seleccionada; `archivoUrl` para FOTO/ARCHIVO/FIRMA.
+model Respuesta {
+  id         String   @id @default(cuid())
+  visita     Visita   @relation(fields: [visitaId], references: [id], onDelete: Cascade)
+  visitaId   String
+  pregunta   Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+  preguntaId String
+  valor      String?
+  archivoUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([visitaId, preguntaId])
+}
+
+// ---------------------------------------------------------------------------
+// Módulo PQRS: cada petición entra con un radicado de entrada consecutivo
+// (ENT-AA-NNNNN, reiniciando en NNNNN=00001 cada año) y, al responderla, se
+// asigna un radicado de salida propio (SAL-AA-NNNNN, mismo esquema de
+// reinicio anual). Ambos radicados se generan en la capa de aplicación
+// (ver web/src/lib/pqrs.ts) y quedan fijos para siempre una vez asignados,
+// aunque la fecha de radicado se corrija después.
+// ---------------------------------------------------------------------------
+model PeticionPqrs {
+  id              String         @id @default(cuid())
+  radicadoEntrada String         @unique
+  fechaRadicado   DateTime
+  peticionario    String
+  tipoPeticion    String // "PETICION" | "QUEJA" | "RECLAMO" | "SUGERENCIA"
+  asunto          String
+  responsable     Usuario        @relation(fields: [responsableId], references: [id])
+  responsableId   String
+  archivoUrl      String
+  archivoNombre   String
+  respuesta       RespuestaPqrs?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model RespuestaPqrs {
+  id              String       @id @default(cuid())
+  peticion        PeticionPqrs @relation(fields: [peticionId], references: [id], onDelete: Cascade)
+  peticionId      String       @unique
+  radicadoSalida  String       @unique
+  fechaRadicado   DateTime
+  texto           String
+  // Último documento generado a partir de `texto`; se regenera cada vez que
+  // se guarda un cambio en la respuesta.
+  documentoUrl    String?
+  documentoPdfUrl String?
+  generadoEn      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}

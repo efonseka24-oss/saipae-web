@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env*
+*.db
+*.db-journal
+public/uploads/*
+!public/uploads/.gitkeep
+public/generados/*
+!public/generados/.gitkeep
+informe_texto.txt
+npm-debug.log*
