@@ -155,6 +155,12 @@ model Pregunta {
 
   respuestas Respuesta[]
 
+  // Identificador numérico estable que usa la app móvil (sus respuestas y
+  // saltos se indexan por Int). Se asigna la primera vez que la app descarga
+  // el catálogo (ver /api/app/preguntas) y nunca cambia, aunque la pregunta
+  // se reordene o se edite.
+  idApp Int? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
