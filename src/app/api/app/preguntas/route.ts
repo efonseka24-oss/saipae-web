@@ -10,6 +10,8 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tokenAppValido } from "@/lib/tokenApp";
+import { plantillaSubPreguntasAuto } from "@/lib/subpreguntasAuto";
+import type { GenerarSubPreguntasAuto } from "@/lib/preguntas";
 
 type PreguntaApp = {
   id: number;
@@ -72,15 +74,45 @@ export async function GET(request: NextRequest) {
     orderBy: [{ orden: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     include: {
       modulo: { select: { esquemaId: true, nombre: true } },
-      padre: { select: { idApp: true } },
+      padre: { select: { idApp: true, generarSubPreguntasAuto: true } },
       saltarHastaPregunta: { select: { idApp: true } },
     },
   });
+  type PreguntaConRelaciones = (typeof preguntas)[number];
+
+  // La app muestra en la misma pantalla de una pregunta principal todas sus
+  // secundarias, en el orden en que llegan, y espera que vengan justo después
+  // de ella. Por eso cada principal va seguida de sus secundarias: primero las
+  // creadas a mano en el panel (por su orden) y después las del grupo
+  // automático (evidencias, materia prima u organoléptico).
+  function esDelGrupoAutomatico(p: PreguntaConRelaciones): boolean {
+    const grupo = (p.padre?.generarSubPreguntasAuto ?? "NINGUNA") as GenerarSubPreguntasAuto;
+    return plantillaSubPreguntasAuto(grupo).some((plantilla) => plantilla.texto === p.texto);
+  }
+
+  function ordenarFlujo(delEsquema: PreguntaConRelaciones[]): PreguntaConRelaciones[] {
+    const hijasPorPadre = new Map<string, PreguntaConRelaciones[]>();
+    for (const p of delEsquema) {
+      if (!p.padreId) continue;
+      hijasPorPadre.set(p.padreId, [...(hijasPorPadre.get(p.padreId) ?? []), p]);
+    }
+    const flujo: PreguntaConRelaciones[] = [];
+    const agregar = (p: PreguntaConRelaciones) => {
+      flujo.push(p);
+      const hijas = hijasPorPadre.get(p.id) ?? [];
+      // sort es estable: dentro de cada bloque se conserva el orden del panel.
+      hijas.sort((a, b) => Number(esDelGrupoAutomatico(a)) - Number(esDelGrupoAutomatico(b)));
+      hijas.forEach(agregar);
+    };
+    delEsquema.filter((p) => !p.padreId).forEach(agregar);
+    // Secundarias cuya principal no está en este esquema: al final, para no perderlas.
+    const incluidas = new Set(flujo.map((p) => p.id));
+    return [...flujo, ...delEsquema.filter((p) => !incluidas.has(p.id))];
+  }
 
   const catalogo = esquemas.map((esquema) => ({
     nombre: esquema.nombre,
-    preguntas: preguntas
-      .filter((p) => p.modulo.esquemaId === esquema.id)
+    preguntas: ordenarFlujo(preguntas.filter((p) => p.modulo.esquemaId === esquema.id))
       .map(
         (p): PreguntaApp => ({
           id: p.idApp!,
