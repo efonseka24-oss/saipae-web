@@ -34,15 +34,15 @@ function leerOpciones(valor: string): string[] {
 }
 
 // Asigna idApp a las preguntas que aún no lo tienen, en el orden del flujo
-// (esquema → módulo → pregunta), continuando después del mayor ya asignado.
+// (esquema → orden de la pregunta), continuando después del mayor ya asignado.
 async function asignarIdsFaltantes() {
   const sinId = await db.pregunta.findMany({
     where: { idApp: null },
     select: { id: true },
     orderBy: [
       { modulo: { esquema: { nombre: "asc" } } },
-      { modulo: { orden: "asc" } },
       { orden: "asc" },
+      { createdAt: "asc" },
     ],
   });
   if (sinId.length === 0) return;
@@ -63,28 +63,25 @@ export async function GET(request: NextRequest) {
 
   await asignarIdsFaltantes();
 
-  const esquemas = await db.esquema.findMany({
-    orderBy: { nombre: "asc" },
+  const esquemas = await db.esquema.findMany({ orderBy: { nombre: "asc" } });
+
+  // El orden de la encuesta es el campo `orden` de cada pregunta, que es global
+  // dentro del esquema (el panel lo asigna así): NO se agrupa por módulo, por
+  // eso la primera y la última pregunta pueden ser del mismo módulo.
+  const preguntas = await db.pregunta.findMany({
+    orderBy: [{ orden: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     include: {
-      modulos: {
-        orderBy: { orden: "asc" },
-        include: {
-          preguntas: {
-            orderBy: { orden: "asc" },
-            include: {
-              padre: { select: { idApp: true } },
-              saltarHastaPregunta: { select: { idApp: true } },
-            },
-          },
-        },
-      },
+      modulo: { select: { esquemaId: true, nombre: true } },
+      padre: { select: { idApp: true } },
+      saltarHastaPregunta: { select: { idApp: true } },
     },
   });
 
   const catalogo = esquemas.map((esquema) => ({
     nombre: esquema.nombre,
-    preguntas: esquema.modulos.flatMap((modulo) =>
-      modulo.preguntas.map(
+    preguntas: preguntas
+      .filter((p) => p.modulo.esquemaId === esquema.id)
+      .map(
         (p): PreguntaApp => ({
           id: p.idApp!,
           texto: p.texto,
@@ -102,10 +99,9 @@ export async function GET(request: NextRequest) {
                 }
               : null,
           categoria: esquema.nombre,
-          modulo: modulo.nombre,
+          modulo: p.modulo.nombre,
         })
-      )
-    ),
+      ),
   }));
 
   // La versión cambia solo si cambia el contenido; la app la muestra para
