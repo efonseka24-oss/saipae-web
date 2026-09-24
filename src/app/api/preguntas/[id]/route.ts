@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
+import { ORDEN_PANEL_AL_FINAL, renumerarOrdenPanel } from "@/lib/ordenPanel";
 import {
   esClasePregunta,
   esTipoPregunta,
   esTipoValidacion,
   esNaturalezaOpciones,
   esGenerarSubPreguntasAuto,
+  esFuenteOpciones,
 } from "@/lib/preguntas";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/preguntas/[id]">) {
@@ -30,6 +32,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pregun
     saltarSiRespuesta,
     saltarHastaPreguntaId,
     saltarRellenarCon,
+    fuenteOpciones,
   } = cuerpo;
 
   if (typeof texto !== "string" || !texto.trim()) {
@@ -47,6 +50,13 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pregun
   if (naturalezaOpciones !== undefined && !esNaturalezaOpciones(naturalezaOpciones)) {
     return NextResponse.json({ error: "Naturaleza de opciones inválida." }, { status: 400 });
   }
+  if (fuenteOpciones !== undefined && !esFuenteOpciones(fuenteOpciones)) {
+    return NextResponse.json({ error: "Origen de opciones inválido." }, { status: 400 });
+  }
+  // Si las opciones salen de Registro/usuarios, la pregunta es de selección y
+  // no se cuenta en estadísticas.
+  const fuente = fuenteOpciones ?? "NINGUNA";
+  const conFuente = fuente !== "NINGUNA";
   if (generarSubPreguntasAuto !== undefined && !esGenerarSubPreguntasAuto(generarSubPreguntasAuto)) {
     return NextResponse.json({ error: "Generación automática de subpreguntas inválida." }, { status: 400 });
   }
@@ -94,12 +104,14 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pregun
     data: {
       texto: texto.trim(),
       moduloId: moduloDestinoId,
+      ...(moduloDestinoId !== actual.moduloId ? { ordenPanel: ORDEN_PANEL_AL_FINAL } : {}),
       clase,
       padreId: clase === "SECUNDARIA" ? padreId : null,
-      tipo,
-      opciones: JSON.stringify(Array.isArray(opciones) ? opciones.filter(Boolean) : []),
-      naturalezaOpciones: naturalezaOpciones ?? "CUALITATIVA",
-      validacion: validacion ?? "NINGUNA",
+      tipo: conFuente ? "SELECCION_MULTIPLE" : tipo,
+      opciones: JSON.stringify(!conFuente && Array.isArray(opciones) ? opciones.filter(Boolean) : []),
+      naturalezaOpciones: conFuente ? "NO_APLICA" : (naturalezaOpciones ?? "CUALITATIVA"),
+      validacion: conFuente ? "NINGUNA" : (validacion ?? "NINGUNA"),
+      fuenteOpciones: fuente,
       obligatoria: obligatoria ?? true,
       orden: typeof orden === "number" ? orden : 0,
       generarSubPreguntasAuto: clase === "PRINCIPAL" ? (generarSubPreguntasAuto ?? "NINGUNA") : "NINGUNA",
@@ -109,6 +121,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pregun
     },
   });
 
+  await renumerarOrdenPanel(actual.modulo.esquemaId);
   return NextResponse.json({ ...pregunta, opciones: JSON.parse(pregunta.opciones) });
 }
 

@@ -81,8 +81,9 @@ export async function calcularEstadisticasVisitas(visitaIds: string[]): Promise<
 
   for (const [esquemaId, info] of grupoPorEsquema) {
     const preguntas = await db.pregunta.findMany({
-      where: { modulo: { esquemaId } },
-      orderBy: [{ modulo: { orden: "asc" } }, { orden: "asc" }],
+      // "No aplica" (ej. municipio, institución) no se cuenta en estadísticas.
+      where: { modulo: { esquemaId }, naturalezaOpciones: { not: "NO_APLICA" } },
+      orderBy: [{ modulo: { orden: "asc" } }, { ordenPanel: "asc" }],
       select: { id: true, texto: true, tipo: true, opciones: true },
     });
 

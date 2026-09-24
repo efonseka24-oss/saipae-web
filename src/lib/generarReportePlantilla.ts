@@ -80,7 +80,9 @@ function valorLegibleDatoGeneral(pregunta: PreguntaPlantilla, respuesta: { valor
 }
 
 function tablaDatosGenerales(preguntas: PreguntaPlantilla[], respuestas: RespuestaMapa, colorEtiqueta: string): Table {
-  const principales = preguntas.filter((p) => p.clase === "PRINCIPAL").sort((a, b) => a.orden - b.orden);
+  const principales = preguntas
+    .filter((p) => p.clase === "PRINCIPAL")
+    .sort((a, b) => (a.ordenPanel ?? a.orden) - (b.ordenPanel ?? b.orden));
   const filas = principales.map(
     (p) =>
       new TableRow({
@@ -109,7 +111,7 @@ export async function generarReportePlantilla(
   const modulosDb = await db.moduloEsquema.findMany({
     where: { esquemaId: visita.esquemaId },
     orderBy: { orden: "asc" },
-    include: { preguntas: { orderBy: { orden: "asc" } } },
+    include: { preguntas: { orderBy: [{ ordenPanel: "asc" }, { orden: "asc" }] } },
   });
 
   // Materia prima y organoléptico siempre van en su propia plantilla

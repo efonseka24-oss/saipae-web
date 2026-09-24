@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DiligenciarVisitaForm } from "@/components/visitas/DiligenciarVisitaForm";
+import { cargarCatalogoRegistro } from "@/lib/catalogoRegistro";
 
 export default async function DiligenciarVisitaPage({ params }: PageProps<"/tabulacion/[id]">) {
   const { id } = await params;
@@ -34,6 +35,7 @@ export default async function DiligenciarVisitaPage({ params }: PageProps<"/tabu
     preguntas: m.preguntas.map((p) => ({ ...p, opciones: JSON.parse(p.opciones) as string[] })),
   }));
 
+  const catalogo = await cargarCatalogoRegistro();
   const [operadores, municipios, instituciones, sedes] = await Promise.all([
     db.operador.findMany({
       orderBy: { nombreRazonSocial: "asc" },
@@ -61,6 +63,8 @@ export default async function DiligenciarVisitaPage({ params }: PageProps<"/tabu
         municipios={municipios}
         instituciones={instituciones}
         sedes={sedes}
+        catalogoRegistro={catalogo.registro}
+        usuariosCorreo={catalogo.usuarios}
       />
     </div>
   );

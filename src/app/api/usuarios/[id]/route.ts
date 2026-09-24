@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { serializarModulosPermitidos } from "@/lib/permisosModulos";
+import { esCorreoValido } from "@/lib/firmaUsuario";
 
 const SELECCION_USUARIO = {
   id: true,
@@ -11,6 +12,7 @@ const SELECCION_USUARIO = {
   cedula: true,
   activo: true,
   cargo: true,
+  correo: true,
   firmaUrl: true,
   modulosPermitidos: true,
 } as const;
@@ -20,7 +22,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/usuari
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const { id } = await ctx.params;
-  const { usuario, nombre, cedula, claveNueva, activo, cargo, modulosPermitidos } = await request.json();
+  const { usuario, nombre, cedula, claveNueva, activo, cargo, correo, modulosPermitidos } = await request.json();
 
   if (typeof usuario !== "string" || !usuario.trim()) {
     return NextResponse.json({ error: "El usuario es obligatorio." }, { status: 400 });
@@ -30,6 +32,14 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/usuari
   }
   if (typeof cedula !== "string" || !cedula.trim()) {
     return NextResponse.json({ error: "La cédula es obligatoria (se usa para reiniciar la clave)." }, { status: 400 });
+  }
+  // Cargo y correo son obligatorios cuando se editan los datos (el botón de
+  // activar/desactivar no los envía, para no bloquear usuarios antiguos).
+  if (cargo !== undefined && (typeof cargo !== "string" || !cargo.trim())) {
+    return NextResponse.json({ error: "El cargo es obligatorio." }, { status: 400 });
+  }
+  if (correo !== undefined && (typeof correo !== "string" || !esCorreoValido(correo.trim()))) {
+    return NextResponse.json({ error: "Escribe un correo válido." }, { status: 400 });
   }
   if (claveNueva !== undefined && claveNueva !== "" && claveNueva.length < 6) {
     return NextResponse.json({ error: "La nueva clave debe tener al menos 6 caracteres." }, { status: 400 });
@@ -50,14 +60,15 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/usuari
         cedula: cedula.trim(),
         ...(typeof activo === "boolean" ? { activo } : {}),
         ...(claveNueva ? { clave: await bcrypt.hash(claveNueva, 10) } : {}),
-        ...(typeof cargo === "string" ? { cargo: cargo.trim() || null } : {}),
+        ...(typeof cargo === "string" ? { cargo: cargo.trim() } : {}),
+        ...(typeof correo === "string" ? { correo: correo.trim().toLowerCase() } : {}),
         ...(Array.isArray(modulosPermitidos) ? { modulosPermitidos: serializarModulosPermitidos(modulosPermitidos) } : {}),
       },
       select: SELECCION_USUARIO,
     });
     return NextResponse.json(actualizado);
   } catch {
-    return NextResponse.json({ error: "No se pudo actualizar el usuario (¿usuario o cédula repetidos?)." }, { status: 409 });
+    return NextResponse.json({ error: "No se pudo actualizar el usuario (¿usuario, cédula o correo repetidos?)." }, { status: 409 });
   }
 }
 

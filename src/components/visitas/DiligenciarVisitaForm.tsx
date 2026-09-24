@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ETIQUETAS_ESTADO_VISITA } from "@/lib/visitas";
 import { DatosVisitaCard } from "@/components/visitas/DatosVisitaCard";
+import { opcionesDesdeRegistro, type CatalogoRegistro, type UsuarioCorreo } from "@/lib/opcionesRegistro";
 
 type Pregunta = {
   id: string;
@@ -20,6 +21,7 @@ type Pregunta = {
   validacion: string;
   obligatoria: boolean;
   orden: number;
+  fuenteOpciones: string;
   saltarSiRespuesta: string | null;
   saltarHastaPreguntaId: string | null;
   saltarRellenarCon: string | null;
@@ -84,6 +86,7 @@ function calcularSaltos(
 
 function CampoPregunta({
   pregunta,
+  opciones,
   respuesta,
   saltada,
   visitaId,
@@ -91,6 +94,8 @@ function CampoPregunta({
   onSubidoArchivo,
 }: {
   pregunta: Pregunta;
+  // Opciones a mostrar: las de la pregunta o las de Registro ya filtradas.
+  opciones: string[];
   respuesta: RespuestaValor | undefined;
   saltada: boolean;
   visitaId: string;
@@ -141,7 +146,8 @@ function CampoPregunta({
           className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="">Selecciona...</option>
-          {pregunta.opciones.map((op) => (
+          {valorLocal && !opciones.includes(valorLocal) && <option value={valorLocal}>{valorLocal}</option>}
+          {opciones.map((op) => (
             <option key={op} value={op}>
               {op}
             </option>
@@ -218,6 +224,8 @@ export function DiligenciarVisitaForm({
   municipios,
   instituciones,
   sedes,
+  catalogoRegistro,
+  usuariosCorreo,
 }: {
   visita: Visita;
   modulos: Modulo[];
@@ -226,6 +234,8 @@ export function DiligenciarVisitaForm({
   municipios: MunicipioRegistro[];
   instituciones: InstitucionRegistro[];
   sedes: SedeRegistro[];
+  catalogoRegistro: CatalogoRegistro;
+  usuariosCorreo: UsuarioCorreo[];
 }) {
   const router = useRouter();
   const [respuestas, setRespuestas] = useState<Record<string, RespuestaValor>>(() =>
@@ -234,6 +244,16 @@ export function DiligenciarVisitaForm({
   const [finalizando, setFinalizando] = useState(false);
 
   const todasLasPreguntas = useMemo(() => modulos.flatMap((m) => m.preguntas), [modulos]);
+
+  // Orden real de la encuesta (campo orden), para filtrar en cascada las
+  // preguntas con opciones desde Registro según lo ya respondido.
+  const flujo = useMemo(
+    () =>
+      [...todasLasPreguntas]
+        .sort((a, b) => a.orden - b.orden)
+        .map((p) => ({ id: p.id, fuenteOpciones: p.fuenteOpciones, valor: respuestas[p.id]?.valor })),
+    [todasLasPreguntas, respuestas]
+  );
 
   const { saltadas, relleno } = useMemo(
     () => calcularSaltos(todasLasPreguntas, respuestas),
@@ -334,6 +354,7 @@ export function DiligenciarVisitaForm({
               <CampoPregunta
                 key={pregunta.id}
                 pregunta={pregunta}
+                opciones={opcionesDesdeRegistro(pregunta.id, flujo, catalogoRegistro, usuariosCorreo) ?? pregunta.opciones}
                 respuesta={respuestas[pregunta.id]}
                 saltada={saltadas.has(pregunta.id)}
                 visitaId={visita.id}

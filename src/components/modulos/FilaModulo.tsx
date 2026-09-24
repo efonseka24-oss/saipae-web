@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { BotonesMover } from "@/components/ui/BotonesMover";
 
 type Modulo = {
   id: string;
@@ -14,8 +15,20 @@ type Modulo = {
   _count: { preguntas: number };
 };
 
-export function FilaModulo({ modulo }: { modulo: Modulo }) {
+export function FilaModulo({ modulo, esPrimero, esUltimo }: { modulo: Modulo; esPrimero: boolean; esUltimo: boolean }) {
   const router = useRouter();
+  const [moviendo, setMoviendo] = useState(false);
+
+  async function mover(direccion: "arriba" | "abajo") {
+    setMoviendo(true);
+    await fetch(`/api/modulos/${modulo.id}/mover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direccion }),
+    });
+    setMoviendo(false);
+    router.refresh();
+  }
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(modulo.nombre);
   const [descripcion, setDescripcion] = useState(modulo.descripcion ?? "");
@@ -98,7 +111,8 @@ export function FilaModulo({ modulo }: { modulo: Modulo }) {
         </Badge>
       </td>
       <td className="py-3 pr-4">
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <BotonesMover onMover={mover} esPrimero={esPrimero} esUltimo={esUltimo} ocupado={moviendo} />
           <button onClick={() => setEditando(true)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600" title="Editar">
             <Pencil className="h-4 w-4" />
           </button>

@@ -27,7 +27,7 @@ export default async function PlantillaEditorPage({
       const modulos = await db.moduloEsquema.findMany({
         where: { esquemaId: esquema.id },
         orderBy: { orden: "asc" },
-        include: { preguntas: { orderBy: { orden: "asc" } } },
+        include: { preguntas: { orderBy: [{ ordenPanel: "asc" }, { orden: "asc" }] } },
       });
       const modulosParaDiseno: ModuloDiseno[] = modulos
         .filter((m) => m.preguntas.length > 0)

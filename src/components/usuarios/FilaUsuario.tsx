@@ -16,6 +16,7 @@ type Usuario = {
   cedula: string;
   activo: boolean;
   cargo: string | null;
+  correo: string | null;
   firmaUrl: string | null;
   modulosPermitidos: string;
 };
@@ -58,6 +59,7 @@ export function FilaUsuario({ usuario, esUsuarioActual }: { usuario: Usuario; es
   const [nombre, setNombre] = useState(usuario.nombre);
   const [cedula, setCedula] = useState(usuario.cedula);
   const [cargo, setCargo] = useState(usuario.cargo ?? "");
+  const [correo, setCorreo] = useState(usuario.correo ?? "");
   const [modulosPermitidos, setModulosPermitidos] = useState<string[]>(() => parsearModulosPermitidos(usuario.modulosPermitidos));
   const [claveNueva, setClaveNueva] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -93,6 +95,7 @@ export function FilaUsuario({ usuario, esUsuarioActual }: { usuario: Usuario; es
         nombre,
         cedula,
         cargo,
+        correo,
         modulosPermitidos,
         claveNueva: claveNueva || undefined,
       }),
@@ -180,7 +183,16 @@ export function FilaUsuario({ usuario, esUsuarioActual }: { usuario: Usuario; es
           <input
             value={cargo}
             onChange={(e) => setCargo(e.target.value)}
-            placeholder="Opcional"
+            placeholder="Obligatorio"
+            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+          />
+        </td>
+        <td className="py-2 pr-4 align-top">
+          <input
+            type="email"
+            value={correo}
+            onChange={(e) => setCorreo(e.target.value)}
+            placeholder="Obligatorio"
             className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
           />
         </td>
@@ -213,6 +225,7 @@ export function FilaUsuario({ usuario, esUsuarioActual }: { usuario: Usuario; es
                 setNombre(usuario.nombre);
                 setCedula(usuario.cedula);
                 setCargo(usuario.cargo ?? "");
+                setCorreo(usuario.correo ?? "");
                 setModulosPermitidos(parsearModulosPermitidos(usuario.modulosPermitidos));
                 setClaveNueva("");
                 setError(null);
@@ -226,7 +239,7 @@ export function FilaUsuario({ usuario, esUsuarioActual }: { usuario: Usuario; es
         </td>
       </tr>
       <tr className="border-b border-slate-100 bg-slate-50 last:border-0">
-        <td colSpan={8} className="pb-3 pt-0">
+        <td colSpan={9} className="pb-3 pt-0">
           <label className="mb-1.5 block text-xs font-medium text-slate-500">Módulos con acceso</label>
           <SelectorModulos value={modulosPermitidos} onChange={setModulosPermitidos} />
         </td>
@@ -247,7 +260,8 @@ export function FilaUsuario({ usuario, esUsuarioActual }: { usuario: Usuario; es
         )}
       </td>
       <td className="py-3 pr-4 text-slate-600">{usuario.cedula}</td>
-      <td className="py-3 pr-4 text-slate-600">{usuario.cargo || "—"}</td>
+      <td className="py-3 pr-4 text-slate-600">{usuario.cargo || <span className="text-amber-600">Falta</span>}</td>
+      <td className="py-3 pr-4 text-slate-600">{usuario.correo || <span className="text-amber-600">Falta</span>}</td>
       <td className="py-3 pr-4">
         <FirmaCelda usuario={usuario} inputRef={inputFirmaRef} subiendo={subiendoFirma} onSubir={subirFirma} />
       </td>

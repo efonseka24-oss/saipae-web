@@ -7,9 +7,11 @@ import {
   esTipoValidacion,
   esNaturalezaOpciones,
   esGenerarSubPreguntasAuto,
+  esFuenteOpciones,
 } from "@/lib/preguntas";
 import { plantillaSubPreguntasAuto } from "@/lib/subpreguntasAuto";
 import { reordenarGruposFinales } from "@/lib/reordenarGruposFinales";
+import { ORDEN_PANEL_AL_FINAL, renumerarOrdenPanel } from "@/lib/ordenPanel";
 
 export async function GET(_request: NextRequest, ctx: RouteContext<"/api/modulos/[id]/preguntas">) {
   const sesion = await obtenerSesion();
@@ -18,7 +20,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/modulos
   const { id } = await ctx.params;
   const preguntas = await db.pregunta.findMany({
     where: { moduloId: id },
-    orderBy: { orden: "asc" },
+    orderBy: [{ ordenPanel: "asc" }, { orden: "asc" }],
   });
   return NextResponse.json(
     preguntas.map((p) => ({ ...p, opciones: JSON.parse(p.opciones) as string[] }))
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
     saltarSiRespuesta,
     saltarHastaPreguntaId,
     saltarRellenarCon,
+    fuenteOpciones,
   } = cuerpo;
 
   if (typeof texto !== "string" || !texto.trim()) {
@@ -63,6 +66,13 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
   if (naturalezaOpciones !== undefined && !esNaturalezaOpciones(naturalezaOpciones)) {
     return NextResponse.json({ error: "Naturaleza de opciones inválida." }, { status: 400 });
   }
+  if (fuenteOpciones !== undefined && !esFuenteOpciones(fuenteOpciones)) {
+    return NextResponse.json({ error: "Origen de opciones inválido." }, { status: 400 });
+  }
+  // Si las opciones salen de Registro/usuarios, la pregunta es de selección y
+  // no se cuenta en estadísticas.
+  const fuente = fuenteOpciones ?? "NINGUNA";
+  const conFuente = fuente !== "NINGUNA";
   if (generarSubPreguntasAuto !== undefined && !esGenerarSubPreguntasAuto(generarSubPreguntasAuto)) {
     return NextResponse.json({ error: "Generación automática de subpreguntas inválida." }, { status: 400 });
   }
@@ -98,12 +108,15 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
       texto: texto.trim(),
       clase,
       padreId: clase === "SECUNDARIA" ? padreId : null,
-      tipo,
-      opciones: JSON.stringify(Array.isArray(opciones) ? opciones.filter(Boolean) : []),
-      naturalezaOpciones: naturalezaOpciones ?? "CUALITATIVA",
-      validacion: validacion ?? "NINGUNA",
+      tipo: conFuente ? "SELECCION_MULTIPLE" : tipo,
+      opciones: JSON.stringify(!conFuente && Array.isArray(opciones) ? opciones.filter(Boolean) : []),
+      naturalezaOpciones: conFuente ? "NO_APLICA" : (naturalezaOpciones ?? "CUALITATIVA"),
+      validacion: conFuente ? "NINGUNA" : (validacion ?? "NINGUNA"),
+      fuenteOpciones: fuente,
       obligatoria: obligatoria ?? true,
       orden: typeof orden === "number" ? orden : 0,
+      // Nueva pregunta: al final de su módulo en el panel (se renumera abajo).
+      ordenPanel: ORDEN_PANEL_AL_FINAL,
       generarSubPreguntasAuto: generarSubPreguntasAuto ?? "NINGUNA",
       saltarSiRespuesta: saltarSiRespuesta?.trim() || null,
       saltarHastaPreguntaId: saltarHastaPreguntaId || null,
@@ -131,6 +144,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
         validacion: sub.validacion ?? "NINGUNA",
         obligatoria: sub.obligatoria,
         orden: pregunta.orden + indice + 1,
+        ordenPanel: ORDEN_PANEL_AL_FINAL + indice + 1,
       })),
     });
   }
@@ -138,11 +152,11 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
   // Las preguntas de materia prima y organoléptico (en ese orden) siempre
   // van al final del resto de la encuesta, sin importar en qué módulo se
   // hayan creado.
-  let preguntaFinal = pregunta;
   if (pregunta.generarSubPreguntasAuto === "MATERIA_PRIMA" || pregunta.generarSubPreguntasAuto === "ORGANOLEPTICO") {
     await reordenarGruposFinales(modulo.esquemaId);
-    preguntaFinal = (await db.pregunta.findUnique({ where: { id: pregunta.id } })) ?? pregunta;
   }
+  await renumerarOrdenPanel(modulo.esquemaId);
+  const preguntaFinal = (await db.pregunta.findUnique({ where: { id: pregunta.id } })) ?? pregunta;
 
   return NextResponse.json({ ...preguntaFinal, opciones: JSON.parse(preguntaFinal.opciones) }, { status: 201 });
 }

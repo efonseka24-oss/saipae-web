@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
-import { serializarTiposRacion } from "@/lib/racionesPae";
+import { serializarTiposRacion, racionesNoPermitidas } from "@/lib/racionesPae";
 
 const INCLUIR = {
   institucion: {
@@ -36,8 +36,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Selecciona la institución." }, { status: 400 });
   }
 
-  const institucion = await db.institucion.findUnique({ where: { id: institucionId } });
-  if (!institucion) return NextResponse.json({ error: "La institución no existe." }, { status: 404 });
+  const institucionMadre = await db.institucion.findUnique({ where: { id: institucionId } });
+  if (!institucionMadre) return NextResponse.json({ error: "La institución no existe." }, { status: 404 });
+  const tiposPedidos: string[] = Array.isArray(tiposRacion) ? tiposRacion : [];
+  const noPermitidas = racionesNoPermitidas(tiposPedidos, institucionMadre.tiposRacion);
+  if (noPermitidas.length > 0) {
+    return NextResponse.json(
+      { error: `La institución no tiene marcada(s) la(s) ración(es) ${noPermitidas.join(", ")}: la sede solo puede tener las de su institución.` },
+      { status: 400 }
+    );
+  }
+
 
   try {
     const sede = await db.sede.create({
@@ -46,7 +55,7 @@ export async function POST(request: NextRequest) {
         nombre: nombre.trim(),
         institucionId,
         habilitadaPae: typeof habilitadaPae === "boolean" ? habilitadaPae : true,
-        tiposRacion: serializarTiposRacion(Array.isArray(tiposRacion) ? tiposRacion : []),
+        tiposRacion: serializarTiposRacion(tiposPedidos),
       },
       include: INCLUIR,
     });

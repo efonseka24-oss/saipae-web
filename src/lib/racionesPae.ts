@@ -26,3 +26,10 @@ export function parsearTiposRacion(json: string): TipoRacionPae[] {
 export function serializarTiposRacion(tipos: string[]): string {
   return JSON.stringify(tipos.filter(esTipoRacionPae));
 }
+
+// Una sede solo puede recibir raciones que tenga marcadas su institución madre.
+// Devuelve los tipos de la sede que NO están permitidos (vacío = todo bien).
+export function racionesNoPermitidas(tiposSede: string[], tiposInstitucionJson: string): string[] {
+  const permitidos = parsearTiposRacion(tiposInstitucionJson);
+  return tiposSede.filter(esTipoRacionPae).filter((t) => !permitidos.includes(t));
+}

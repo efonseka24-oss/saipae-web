@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   const visitas = await db.visita.findMany({
     where: esquemaId ? { esquemaId } : undefined,
-    include: { esquema: { select: { nombre: true } } },
+    include: { esquema: { select: { nombre: true } }, usuario: { select: { nombre: true } } },
     orderBy: { fecha: "desc" },
   });
   return NextResponse.json(visitas);

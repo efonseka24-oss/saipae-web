@@ -6,12 +6,15 @@ import { Plus, Pencil, Trash2, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { BotonesMover } from "@/components/ui/BotonesMover";
 import { PreguntaForm, type PreguntaExistente } from "@/components/preguntas/PreguntaForm";
 import {
   ETIQUETAS_TIPO_PREGUNTA,
   ETIQUETAS_VALIDACION,
   ETIQUETAS_NATURALEZA_OPCIONES,
   ETIQUETAS_GENERAR_SUBPREGUNTAS_AUTO,
+  ETIQUETAS_FUENTE_OPCIONES,
+  type FuenteOpciones,
   type TipoPregunta,
   type TipoValidacion,
   type NaturalezaOpciones,
@@ -29,6 +32,19 @@ export function PreguntasManager({
 }) {
   const router = useRouter();
   const [modoEdicion, setModoEdicion] = useState<string | null>(null); // id, "__nueva__", o null
+  const [moviendo, setMoviendo] = useState(false);
+
+  // Solo cambia el orden del panel e informes (no el de la app móvil).
+  async function mover(pregunta: PreguntaExistente, direccion: "arriba" | "abajo") {
+    setMoviendo(true);
+    await fetch(`/api/preguntas/${pregunta.id}/mover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direccion }),
+    });
+    setMoviendo(false);
+    router.refresh();
+  }
 
   const principales = preguntas.filter((p) => p.clase === "PRINCIPAL");
   const preguntasPrincipalesOpciones = principales.map((p) => ({ id: p.id, texto: p.texto }));
@@ -45,7 +61,8 @@ export function PreguntasManager({
     router.refresh();
   }
 
-  function renderFila(pregunta: PreguntaExistente, esSub: boolean) {
+  function renderFila(pregunta: PreguntaExistente, esSub: boolean, hermanas: PreguntaExistente[]) {
+    const posicion = hermanas.findIndex((h) => h.id === pregunta.id);
     if (modoEdicion === pregunta.id) {
       return (
         <div key={pregunta.id} className="py-3">
@@ -83,6 +100,10 @@ export function PreguntasManager({
             ) : (
               <Badge variante="slate">Opcional</Badge>
             )}
+            {pregunta.fuenteOpciones && pregunta.fuenteOpciones !== "NINGUNA" && (
+              <Badge variante="green">{ETIQUETAS_FUENTE_OPCIONES[pregunta.fuenteOpciones as FuenteOpciones]}</Badge>
+            )}
+            {pregunta.naturalezaOpciones === "NO_APLICA" && <Badge variante="slate">No cuenta en estadísticas</Badge>}
             {pregunta.tipo === "SELECCION_MULTIPLE" && pregunta.opciones.length > 0 && (
               <>
                 <Badge variante="green">{pregunta.opciones.length} opción(es)</Badge>
@@ -103,7 +124,13 @@ export function PreguntasManager({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 gap-1">
+        <div className="flex shrink-0 items-center gap-1">
+          <BotonesMover
+            onMover={(direccion) => mover(pregunta, direccion)}
+            esPrimero={posicion <= 0}
+            esUltimo={posicion === hermanas.length - 1}
+            ocupado={moviendo}
+          />
           <button
             onClick={() => setModoEdicion(pregunta.id)}
             className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600"
@@ -153,16 +180,17 @@ export function PreguntasManager({
           <div>
             {principales.map((principal) => (
               <div key={principal.id}>
-                {renderFila(principal, false)}
-                {preguntas
-                  .filter((p) => p.padreId === principal.id)
-                  .map((sub) => renderFila(sub, true))}
+                {renderFila(principal, false, principales)}
+                {(() => {
+                  const subs = preguntas.filter((p) => p.padreId === principal.id);
+                  return subs.map((sub) => renderFila(sub, true, subs));
+                })()}
               </div>
             ))}
             {/* Huérfanas: secundarias cuyo padre ya no existe o preguntas sin clase reconocida */}
             {preguntas
               .filter((p) => p.clase === "SECUNDARIA" && !principales.some((pr) => pr.id === p.padreId))
-              .map((huerfana) => renderFila(huerfana, false))}
+              .map((huerfana, _i, huerfanas) => renderFila(huerfana, false, huerfanas))}
           </div>
         )}
       </Card>

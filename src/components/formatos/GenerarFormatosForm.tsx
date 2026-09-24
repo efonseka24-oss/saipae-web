@@ -21,6 +21,8 @@ type Visita = {
   lote: string | null;
   estado: string;
   informeGeneradoEn: string | null;
+  // Interventor que hizo la visita (unido por el correo elegido en la app).
+  usuario?: { nombre: string } | null;
 };
 type Resultado = { nombre: string; nombreBase: string; docxUrl: string; pdfUrl: string | null };
 
@@ -213,6 +215,7 @@ export function GenerarFormatosForm({
                     <td className="py-3 pr-4 text-slate-600">
                       {v.operador ?? "—"}
                       {v.institucion && <span className="text-slate-400"> · {v.institucion}</span>}
+                      {v.usuario && <span className="block text-xs text-slate-400">Interventor: {v.usuario.nombre}</span>}
                     </td>
                     <td className="py-3 pr-4">
                       <Badge variante={v.estado === "FINALIZADA" ? "green" : "amber"}>

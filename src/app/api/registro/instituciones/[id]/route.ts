@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
-import { serializarTiposRacion } from "@/lib/racionesPae";
+import { serializarTiposRacion, parsearTiposRacion } from "@/lib/racionesPae";
 
 const INCLUIR = {
   municipio: {
@@ -37,6 +37,18 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/regist
       },
       include: INCLUIR,
     });
+
+    // Las sedes solo pueden tener raciones de su institución: si se desmarcó
+    // alguna, se quita también de las sedes que la tenían.
+    const permitidas = parsearTiposRacion(institucion.tiposRacion);
+    const sedes = await db.sede.findMany({ where: { institucionId: id }, select: { id: true, tiposRacion: true } });
+    for (const sede of sedes) {
+      const actuales = parsearTiposRacion(sede.tiposRacion);
+      const filtradas = actuales.filter((t) => permitidas.includes(t));
+      if (filtradas.length !== actuales.length) {
+        await db.sede.update({ where: { id: sede.id }, data: { tiposRacion: serializarTiposRacion(filtradas) } });
+      }
+    }
     return NextResponse.json(institucion);
   } catch {
     return NextResponse.json({ error: "Ya existe una institución con ese número DANE." }, { status: 409 });

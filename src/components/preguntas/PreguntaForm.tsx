@@ -11,6 +11,8 @@ import {
   TIPOS_VALIDACION,
   NATURALEZAS_OPCIONES,
   GENERAR_SUBPREGUNTAS_AUTO,
+  FUENTES_OPCIONES,
+  ETIQUETAS_FUENTE_OPCIONES,
   ETIQUETAS_TIPO_PREGUNTA,
   ETIQUETAS_VALIDACION,
   ETIQUETAS_NATURALEZA_OPCIONES,
@@ -20,6 +22,7 @@ import {
   type TipoValidacion,
   type NaturalezaOpciones,
   type GenerarSubPreguntasAuto,
+  type FuenteOpciones,
 } from "@/lib/preguntas";
 
 export type PreguntaExistente = {
@@ -34,6 +37,8 @@ export type PreguntaExistente = {
   validacion: string;
   obligatoria: boolean;
   orden: number;
+  ordenPanel?: number;
+  fuenteOpciones?: string;
   generarSubPreguntasAuto: string;
   saltarSiRespuesta: string | null;
   saltarHastaPreguntaId: string | null;
@@ -75,6 +80,10 @@ export function PreguntaForm({
   const [naturalezaOpciones, setNaturalezaOpciones] = useState<NaturalezaOpciones>(
     (preguntaExistente?.naturalezaOpciones as NaturalezaOpciones) ?? "CUALITATIVA"
   );
+  const [fuenteOpciones, setFuenteOpciones] = useState<FuenteOpciones>(
+    (preguntaExistente?.fuenteOpciones as FuenteOpciones) ?? "NINGUNA"
+  );
+  const conFuente = tipo === "SELECCION_MULTIPLE" && fuenteOpciones !== "NINGUNA";
   const [validacion, setValidacion] = useState<TipoValidacion>(
     (preguntaExistente?.validacion as TipoValidacion) ?? "NINGUNA"
   );
@@ -102,9 +111,10 @@ export function PreguntaForm({
       clase,
       padreId: clase === "SECUNDARIA" ? padreId : null,
       tipo,
-      opciones: tipo === "SELECCION_MULTIPLE" ? opciones.filter((o) => o.trim()) : [],
-      naturalezaOpciones: tipo === "SELECCION_MULTIPLE" ? naturalezaOpciones : "CUALITATIVA",
-      validacion,
+      opciones: tipo === "SELECCION_MULTIPLE" && !conFuente ? opciones.filter((o) => o.trim()) : [],
+      naturalezaOpciones: conFuente ? "NO_APLICA" : tipo === "SELECCION_MULTIPLE" ? naturalezaOpciones : "CUALITATIVA",
+      fuenteOpciones: conFuente ? fuenteOpciones : "NINGUNA",
+      validacion: conFuente ? "NINGUNA" : validacion,
       obligatoria,
       orden: Number(orden) || 0,
       generarSubPreguntasAuto: clase === "PRINCIPAL" ? generarSubPreguntasAuto : "NINGUNA",
@@ -236,22 +246,48 @@ export function PreguntaForm({
           </select>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Validación</label>
-          <select
-            value={validacion}
-            onChange={(e) => setValidacion(e.target.value as TipoValidacion)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            {TIPOS_VALIDACION.map((v) => (
-              <option key={v} value={v}>
-                {ETIQUETAS_VALIDACION[v]}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!conFuente && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Validación</label>
+            <select
+              value={validacion}
+              onChange={(e) => setValidacion(e.target.value as TipoValidacion)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {TIPOS_VALIDACION.map((v) => (
+                <option key={v} value={v}>
+                  {ETIQUETAS_VALIDACION[v]}
+                </option>
+              ))}
+            </select>
+          </div>
+          )}
 
         {tipo === "SELECCION_MULTIPLE" && (
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-700">Opciones desde</label>
+            <select
+              value={fuenteOpciones}
+              onChange={(e) => setFuenteOpciones(e.target.value as FuenteOpciones)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {FUENTES_OPCIONES.map((f) => (
+                <option key={f} value={f}>
+                  {ETIQUETAS_FUENTE_OPCIONES[f]}
+                </option>
+              ))}
+            </select>
+            {conFuente && (
+              <p className="mt-1 text-xs text-slate-500">
+                {fuenteOpciones === "USUARIO"
+                  ? "La app muestra los correos de los usuarios activos del panel; la visita queda unida a ese usuario."
+                  : "Las opciones se cargan del módulo Registro y se filtran según lo elegido antes en la visita (lote → zode → municipio → institución → sede). No cuenta en estadísticas."}
+              </p>
+            )}
+          </div>
+        )}
+
+        {tipo === "SELECCION_MULTIPLE" && !conFuente && (
           <>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -269,7 +305,7 @@ export function PreguntaForm({
                 ))}
               </select>
               <p className="mt-1 text-xs text-slate-500">
-                Cualitativa: p. ej. CUMPLE / NO CUMPLE. Cuantitativa: p. ej. 0 / 1 / 3.
+                Cualitativa: p. ej. CUMPLE / NO CUMPLE. Cuantitativa: p. ej. 0 / 1 / 3. No aplica: no se cuenta en las estadísticas.
               </p>
             </div>
 

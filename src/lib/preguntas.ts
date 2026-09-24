@@ -26,13 +26,15 @@ export const TIPOS_VALIDACION = [
 export type TipoValidacion = (typeof TIPOS_VALIDACION)[number];
 
 // Naturaleza de las opciones de respuesta cuando tipo = SELECCION_MULTIPLE:
-// cualitativa (ej. CUMPLE / NO CUMPLE / NO APLICA) o cuantitativa (ej. 0 / 1 / 3).
-export const NATURALEZAS_OPCIONES = ["CUALITATIVA", "CUANTITATIVA"] as const;
+// cualitativa (ej. CUMPLE / NO CUMPLE / NO APLICA), cuantitativa (ej. 0 / 1 / 3)
+// o "no aplica": la pregunta no se cuenta en ninguna estadística (ej. municipio).
+export const NATURALEZAS_OPCIONES = ["CUALITATIVA", "CUANTITATIVA", "NO_APLICA"] as const;
 export type NaturalezaOpciones = (typeof NATURALEZAS_OPCIONES)[number];
 
 export const ETIQUETAS_NATURALEZA_OPCIONES: Record<NaturalezaOpciones, string> = {
   CUALITATIVA: "Cualitativa",
   CUANTITATIVA: "Cuantitativa",
+  NO_APLICA: "No aplica (no cuenta en estadísticas)",
 };
 
 export const ETIQUETAS_TIPO_PREGUNTA: Record<TipoPregunta, string> = {
@@ -89,4 +91,25 @@ export const ETIQUETAS_GENERAR_SUBPREGUNTAS_AUTO: Record<GenerarSubPreguntasAuto
 
 export function esGenerarSubPreguntasAuto(valor: string): valor is GenerarSubPreguntasAuto {
   return (GENERAR_SUBPREGUNTAS_AUTO as readonly string[]).includes(valor);
+}
+
+// Origen de las opciones de una pregunta de selección: fijas (escritas en la
+// pregunta) o tomadas del módulo Registro / de los usuarios del panel. Las de
+// Registro se filtran en cascada: al elegir un municipio, la pregunta de
+// institución solo ofrece las de ese municipio, y así sucesivamente.
+export const FUENTES_OPCIONES = ["NINGUNA", "LOTE", "ZODE", "MUNICIPIO", "INSTITUCION", "SEDE", "USUARIO"] as const;
+export type FuenteOpciones = (typeof FUENTES_OPCIONES)[number];
+
+export const ETIQUETAS_FUENTE_OPCIONES: Record<FuenteOpciones, string> = {
+  NINGUNA: "Opciones escritas en la pregunta",
+  LOTE: "Lotes (Registro)",
+  ZODE: "Zodes (Registro)",
+  MUNICIPIO: "Municipios (Registro)",
+  INSTITUCION: "Instituciones (Registro)",
+  SEDE: "Sedes (Registro)",
+  USUARIO: "Correos de los usuarios (interventor)",
+};
+
+export function esFuenteOpciones(valor: string): valor is FuenteOpciones {
+  return (FUENTES_OPCIONES as readonly string[]).includes(valor);
 }

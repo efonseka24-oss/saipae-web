@@ -31,7 +31,7 @@ export default async function ModulosEsquemaPage(props: PageProps<"/esquemas/[id
 
       <PageHeader
         titulo={`Módulos de ${esquema.nombre}`}
-        descripcion="Agrupa las preguntas de este esquema por módulo (ej. Personal Manipulador de Alimentos, Datos Personales, ...)."
+        descripcion="Agrupa las preguntas de este esquema por módulo. Las flechas cambian el orden en el panel y los informes; el orden de la encuesta en la app lo define el campo Orden de cada pregunta."
         acciones={<NuevoModuloForm esquemaId={esquema.id} />}
       />
 
@@ -47,8 +47,8 @@ export default async function ModulosEsquemaPage(props: PageProps<"/esquemas/[id
               </tr>
             </thead>
             <tbody>
-              {modulos.map((modulo) => (
-                <FilaModulo key={modulo.id} modulo={modulo} />
+              {modulos.map((modulo, indice) => (
+                <FilaModulo key={modulo.id} modulo={modulo} esPrimero={indice === 0} esUltimo={indice === modulos.length - 1} />
               ))}
               {modulos.length === 0 && (
                 <tr>

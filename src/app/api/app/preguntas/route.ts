@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tokenAppValido } from "@/lib/tokenApp";
+import { cargarCatalogoRegistro } from "@/lib/catalogoRegistro";
 import { plantillaSubPreguntasAuto } from "@/lib/subpreguntasAuto";
 import type { GenerarSubPreguntasAuto } from "@/lib/preguntas";
 
@@ -24,6 +25,8 @@ type PreguntaApp = {
   saltarSi: { respuesta: string; saltarHastaId: number; rellenarCon: string } | null;
   categoria: string;
   modulo: string;
+  // "NINGUNA" o de dónde salen las opciones (ver bloque `registro` / `usuarios`).
+  fuenteOpciones: string;
 };
 
 function leerOpciones(valor: string): string[] {
@@ -132,13 +135,18 @@ export async function GET(request: NextRequest) {
               : null,
           categoria: esquema.nombre,
           modulo: p.modulo.nombre,
+          fuenteOpciones: p.fuenteOpciones,
         })
       ),
   }));
 
+  // Catálogos para las preguntas con opciones desde Registro: cada nivel trae
+  // el id de su padre para que la app filtre en cascada sin internet.
+  const { registro, usuarios } = await cargarCatalogoRegistro();
+
   // La versión cambia solo si cambia el contenido; la app la muestra para
   // saber qué catálogo tiene guardado.
-  const version = createHash("sha1").update(JSON.stringify(catalogo)).digest("hex").slice(0, 12);
+  const version = createHash("sha1").update(JSON.stringify({ catalogo, registro, usuarios })).digest("hex").slice(0, 12);
 
-  return NextResponse.json({ version, generadoEn: new Date().toISOString(), esquemas: catalogo });
+  return NextResponse.json({ version, generadoEn: new Date().toISOString(), esquemas: catalogo, registro, usuarios });
 }

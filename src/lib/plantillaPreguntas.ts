@@ -13,6 +13,7 @@ export type PreguntaPlantilla = {
   naturalezaOpciones: string;
   padreId: string | null;
   orden: number;
+  ordenPanel?: number;
   generarSubPreguntasAuto: string;
 };
 
@@ -87,9 +88,12 @@ export function textoObservacion(
   todasLasPreguntas: PreguntaPlantilla[],
   valorPorPregunta: Map<string, string | null | undefined>
 ): string {
-  const hijaObservacion = todasLasPreguntas
+  // Primero la observación del grupo de evidencias; si no hay, la primera
+  // secundaria de texto (las secundarias creadas a mano no son observaciones).
+  const hijasTexto = todasLasPreguntas
     .filter((p) => p.padreId === pregunta.id && p.clase === "SECUNDARIA" && p.tipo === "TEXTO_LIBRE")
-    .sort((a, b) => a.orden - b.orden)[0];
+    .sort((a, b) => (a.ordenPanel ?? a.orden) - (b.ordenPanel ?? b.orden));
+  const hijaObservacion = hijasTexto.find((p) => /^Observaciones sobre la pregunta/i.test(p.texto)) ?? hijasTexto[0];
   if (!hijaObservacion) return "";
   return valorPorPregunta.get(hijaObservacion.id)?.trim() || "";
 }

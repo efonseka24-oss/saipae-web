@@ -19,6 +19,9 @@ model Usuario {
   // impreso y firma escaneada que se insertan en la carta generada.
   cargo             String?
   firmaUrl          String?
+  // Correo del usuario: la app móvil lo ofrece en la pregunta "correo del
+  // interventor" y con él cada visita enviada queda unida a su usuario.
+  correo            String?        @unique
   // Módulos del panel que puede ver este usuario (JSON-encoded string[] de
   // ModuloId, ver web/src/lib/modulos.ts). Se guarda la lista explícita (no
   // "vacío = todos") para que no haya ambigüedad entre "sin configurar" y
@@ -26,6 +29,7 @@ model Usuario {
   // migración) parten con todos los módulos marcados.
   modulosPermitidos String         @default("[]")
   peticionesPqrs    PeticionPqrs[]
+  visitas           Visita[]
 }
 
 // Datos de la empresa dueña del sistema (registro único / singleton: siempre
@@ -121,7 +125,8 @@ model ModuloEsquema {
 //   clase                  -> "PRINCIPAL" | "SECUNDARIA"
 //   tipo                   -> "TEXTO_LIBRE" | "NUMERO" | "SELECCION_MULTIPLE" | "FOTO" | "ARCHIVO" | "FIRMA"
 //   validacion             -> "NINGUNA" | "EMAIL" | "NUMERO" | "TELEFONO" | "FECHA" | "HORA"
-//   naturalezaOpciones     -> "CUALITATIVA" | "CUANTITATIVA" (solo aplica si tipo = SELECCION_MULTIPLE)
+//   naturalezaOpciones     -> "CUALITATIVA" | "CUANTITATIVA" | "NO_APLICA" (solo aplica si tipo = SELECCION_MULTIPLE;
+//                             "NO_APLICA" = no se cuenta en estadísticas)
 //   generarSubPreguntasAuto -> "NINGUNA" | "EVIDENCIAS" | "MATERIA_PRIMA" | "ORGANOLEPTICO"
 //     (replica exactamente los grupos fijos que genera la app móvil en
 //     EncuestaUtils.kt al activar una pregunta principal; solo aplica una
@@ -140,8 +145,16 @@ model Pregunta {
   naturalezaOpciones      String        @default("CUALITATIVA")
   validacion              String        @default("NINGUNA")
   obligatoria             Boolean       @default(true)
+  // Orden de la encuesta en la app móvil (global dentro del esquema).
   orden                   Int           @default(0)
+  // Orden en que se muestra en el panel e informes (botones subir/bajar);
+  // independiente del orden de la app.
+  ordenPanel              Int           @default(0)
   generarSubPreguntasAuto String        @default("NINGUNA")
+  // Si no es "NINGUNA", las opciones salen del módulo Registro en vez de
+  // `opciones`: "LOTE" | "ZODE" | "MUNICIPIO" | "INSTITUCION" | "SEDE", o
+  // "USUARIO" (correos de los usuarios del panel, para el interventor).
+  fuenteOpciones          String        @default("NINGUNA")
 
   // Salto condicional (mismo mecanismo que "saltarSi" en la app móvil): si la
   // respuesta de esta pregunta principal es exactamente `saltarSiRespuesta`,
@@ -368,6 +381,9 @@ model Visita {
   // visita en el equipo. Si la app reenvía la misma visita, se actualiza en
   // vez de duplicarse. Null para visitas creadas en el panel.
   idEnvioApp        String?     @unique
+  // Interventor que hizo la visita (según el correo elegido en la app).
+  usuario           Usuario?    @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioId         String?
   respuestas        Respuesta[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt

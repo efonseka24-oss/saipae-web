@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
 
   const preguntas = await db.pregunta.findMany({
     where: { modulo: { esquemaId: esquema.id }, idApp: { not: null } },
-    select: { id: true, idApp: true, texto: true, padreId: true },
+    select: { id: true, idApp: true, texto: true, padreId: true, fuenteOpciones: true },
+    orderBy: { orden: "asc" },
   });
   const porIdApp = new Map(preguntas.map((p) => [p.idApp!, p]));
 
@@ -83,6 +84,18 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Interventor: el correo elegido en la pregunta de usuarios (o, si el esquema
+  // aún no la tiene configurada, la del "correo electrónico del interventor").
+  const preguntaCorreo =
+    preguntas.find((p) => p.fuenteOpciones === "USUARIO") ??
+    preguntas.find((p) => !p.padreId && /CORREO ELECTR[OÓ]NICO DEL INTERVENTOR/i.test(p.texto));
+  const correoInterventor = preguntaCorreo
+    ? valores.find((v) => v.preguntaId === preguntaCorreo.id)?.valor?.toLowerCase() ?? null
+    : null;
+  const interventor = correoInterventor
+    ? await db.usuario.findUnique({ where: { correo: correoInterventor }, select: { id: true } })
+    : null;
+
   const fechaVisita = typeof fecha === "string" && !Number.isNaN(Date.parse(fecha)) ? new Date(fecha) : new Date();
   const datosVisita = {
     esquemaId: esquema.id,
@@ -95,6 +108,7 @@ export async function POST(request: NextRequest) {
     zodes,
     lote,
     estado: "FINALIZADA",
+    usuarioId: interventor?.id ?? null,
   };
 
   const visita = await db.$transaction(async (tx) => {
@@ -117,5 +131,6 @@ export async function POST(request: NextRequest) {
     visitaId: visita.id,
     respuestasGuardadas: valores.length,
     idsDesconocidos,
+    interventorEncontrado: Boolean(interventor),
   });
 }

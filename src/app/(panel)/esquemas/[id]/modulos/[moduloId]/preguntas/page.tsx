@@ -18,7 +18,7 @@ export default async function PreguntasModuloPage(
 
   const preguntas = await db.pregunta.findMany({
     where: { moduloId },
-    orderBy: { orden: "asc" },
+    orderBy: [{ ordenPanel: "asc" }, { orden: "asc" }],
   });
 
   const preguntasSerializadas = preguntas.map((p) => ({

@@ -31,7 +31,7 @@ export async function generarReporteGrupoEspecial(
 
   const todasLasPreguntas = await db.pregunta.findMany({
     where: { modulo: { esquemaId: visita.esquemaId } },
-    orderBy: { orden: "asc" },
+    orderBy: [{ modulo: { orden: "asc" } }, { ordenPanel: "asc" }],
   });
 
   const respuestasDb = await db.respuesta.findMany({ where: { visitaId } });
@@ -69,7 +69,7 @@ export async function generarReporteGrupoEspecial(
 
     const subpreguntas = todasLasPreguntas
       .filter((p) => p.padreId === item.id && p.clase === "SECUNDARIA")
-      .sort((a, b) => a.orden - b.orden);
+      .sort((a, b) => a.ordenPanel - b.ordenPanel);
 
     const filas = subpreguntas.map(
       (p) =>

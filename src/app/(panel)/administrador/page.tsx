@@ -9,14 +9,14 @@ export default async function AdministradorPage() {
   const sesion = await obtenerSesion();
   const usuarios = await db.usuario.findMany({
     orderBy: { usuario: "asc" },
-    select: { id: true, usuario: true, nombre: true, cedula: true, activo: true, cargo: true, firmaUrl: true, modulosPermitidos: true },
+    select: { id: true, usuario: true, nombre: true, cedula: true, activo: true, cargo: true, correo: true, firmaUrl: true, modulosPermitidos: true },
   });
 
   return (
     <div>
       <PageHeader
         titulo="Administrador"
-        descripcion="Crea y edita los usuarios que pueden ingresar al panel. La cédula se usa como control de seguridad para reiniciar la clave."
+        descripcion="Crea y edita los usuarios del panel. Cédula, nombre, cargo, correo y firma son obligatorios: el correo une las visitas de la app con su interventor y la cédula sirve para reiniciar la clave."
         acciones={<NuevoUsuarioForm />}
       />
 
@@ -29,6 +29,7 @@ export default async function AdministradorPage() {
                 <th className="py-2 pr-4">Nombre</th>
                 <th className="py-2 pr-4">Cédula</th>
                 <th className="py-2 pr-4">Cargo</th>
+                <th className="py-2 pr-4">Correo</th>
                 <th className="py-2 pr-4">Firma</th>
                 <th className="py-2 pr-4">Módulos</th>
                 <th className="py-2 pr-4">Acceso</th>

@@ -130,7 +130,7 @@ async function contarVisitasPorEsquema(visitasResueltas: VisitaResuelta[], loteN
   const resultado: ConteoVisitasEsquema[] = [];
   for (const [esquemaId, info] of grupoPorEsquema) {
     const preguntas = (await db.pregunta.findMany({
-      where: { modulo: { esquemaId }, clase: "PRINCIPAL" },
+      where: { modulo: { esquemaId }, clase: "PRINCIPAL", naturalezaOpciones: { not: "NO_APLICA" } },
       select: { id: true, texto: true, clase: true, tipo: true, opciones: true, naturalezaOpciones: true, padreId: true, orden: true, generarSubPreguntasAuto: true },
     })) as PreguntaPlantilla[];
     const preguntasCalificables = preguntas.filter((p) => !esPreguntaDeGrupoEspecial(p) && valorMaximoPregunta(p) !== null);
@@ -192,7 +192,7 @@ async function contarEncuestasPorInstitucion(visitasResueltas: VisitaResuelta[],
   const resultado: ConteoEncuestaInstitucion[] = [];
   for (const [institucion, info] of grupoPorInstitucion) {
     const preguntas = await db.pregunta.findMany({
-      where: { clase: "PRINCIPAL", modulo: { esquemaId: { in: [...info.esquemaIds] } } },
+      where: { clase: "PRINCIPAL", naturalezaOpciones: { not: "NO_APLICA" }, modulo: { esquemaId: { in: [...info.esquemaIds] } } },
       select: { id: true },
     });
     const favorabilidad = await favorabilidadPorSi(preguntas.map((p) => p.id), info.ids);

@@ -40,7 +40,7 @@ export async function generarReporteVisita(
   const modulos = await db.moduloEsquema.findMany({
     where: { esquemaId: visita.esquemaId },
     orderBy: { orden: "asc" },
-    include: { preguntas: { orderBy: { orden: "asc" } } },
+    include: { preguntas: { orderBy: [{ ordenPanel: "asc" }, { orden: "asc" }] } },
   });
 
   const respuestas = await db.respuesta.findMany({ where: { visitaId } });

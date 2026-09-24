@@ -37,6 +37,12 @@ function SelectInstitucion({
   );
 }
 
+// Raciones que tiene marcadas la institución: son las únicas que puede tener la sede.
+function racionesDeInstitucion(instituciones: Institucion[], institucionId: string): string[] {
+  const institucion = instituciones.find((i) => i.id === institucionId);
+  return institucion ? parsearTiposRacion(institucion.tiposRacion) : [];
+}
+
 function FilaSede({ sede, instituciones }: { sede: Sede; instituciones: Institucion[] }) {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
@@ -96,7 +102,15 @@ function FilaSede({ sede, instituciones }: { sede: Sede; instituciones: Instituc
           />
         </td>
         <td className="py-2 pr-4">
-          <SelectInstitucion value={institucionId} onChange={setInstitucionId} instituciones={instituciones} />
+          <SelectInstitucion
+            value={institucionId}
+            onChange={(id) => {
+              setInstitucionId(id);
+              const permitidas = racionesDeInstitucion(instituciones, id);
+              setTiposRacion((actuales) => actuales.filter((t) => permitidas.includes(t)));
+            }}
+            instituciones={instituciones}
+          />
         </td>
         <td className="py-2 pr-4" />
         <td className="py-2 pr-4" />
@@ -112,7 +126,11 @@ function FilaSede({ sede, instituciones }: { sede: Sede; instituciones: Instituc
           </label>
         </td>
         <td className="py-2 pr-4 align-top">
-          <SelectorTiposRacion value={tiposRacion} onChange={setTiposRacion} />
+          <SelectorTiposRacion
+            value={tiposRacion}
+            onChange={setTiposRacion}
+            permitidos={racionesDeInstitucion(instituciones, institucionId)}
+          />
         </td>
         <td className="py-2 pr-4">
           {error && <p className="mb-1 text-xs font-medium text-red-600">{error}</p>}
@@ -274,7 +292,15 @@ export function SedesTab({
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Institución</label>
-              <SelectInstitucion value={institucionId} onChange={setInstitucionId} instituciones={instituciones} />
+              <SelectInstitucion
+            value={institucionId}
+            onChange={(id) => {
+              setInstitucionId(id);
+              const permitidas = racionesDeInstitucion(instituciones, id);
+              setTiposRacion((actuales) => actuales.filter((t) => permitidas.includes(t)));
+            }}
+            instituciones={instituciones}
+          />
               <p className="mt-1 text-xs text-slate-500">
                 Municipio, zode, lote y departamento se asignan automáticamente según la institución.
               </p>
@@ -292,7 +318,11 @@ export function SedesTab({
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Tipo(s) de ración</label>
-              <SelectorTiposRacion value={tiposRacion} onChange={setTiposRacion} />
+              <SelectorTiposRacion
+            value={tiposRacion}
+            onChange={setTiposRacion}
+            permitidos={racionesDeInstitucion(instituciones, institucionId)}
+          />
             </div>
             {error && <p className="text-sm font-medium text-red-600">{error}</p>}
             <Button type="submit" disabled={guardando}>
