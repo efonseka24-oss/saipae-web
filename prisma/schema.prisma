@@ -153,7 +153,8 @@ model Pregunta {
   generarSubPreguntasAuto String        @default("NINGUNA")
   // Si no es "NINGUNA", las opciones salen del módulo Registro en vez de
   // `opciones`: "LOTE" | "ZODE" | "MUNICIPIO" | "INSTITUCION" | "SEDE", o
-  // "USUARIO" (correos de los usuarios del panel, para el interventor).
+  // "USUARIO" (correos de los usuarios del panel, para el interventor) u
+  // "OPERADOR" (operadores de Registro, filtrados por zode).
   fuenteOpciones          String        @default("NINGUNA")
 
   // Salto condicional (mismo mecanismo que "saltarSi" en la app móvil): si la

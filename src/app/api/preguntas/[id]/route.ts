@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { ORDEN_PANEL_AL_FINAL, renumerarOrdenPanel } from "@/lib/ordenPanel";
+import { ORDEN_SECUNDARIA_AL_FINAL, ordenarSecundarias } from "@/lib/ordenSecundarias";
 import {
   esClasePregunta,
   esTipoPregunta,
@@ -113,7 +114,12 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pregun
       validacion: conFuente ? "NINGUNA" : (validacion ?? "NINGUNA"),
       fuenteOpciones: fuente,
       obligatoria: obligatoria ?? true,
-      orden: typeof orden === "number" ? orden : 0,
+      // Las secundarias toman su orden de la principal (ver ordenarSecundarias):
+      // conservan su lugar entre las hermanas, o van de últimas si cambian de principal.
+      orden:
+        clase === "SECUNDARIA"
+          ? actual.padreId === padreId ? actual.orden : ORDEN_SECUNDARIA_AL_FINAL
+          : typeof orden === "number" ? orden : 0,
       generarSubPreguntasAuto: clase === "PRINCIPAL" ? (generarSubPreguntasAuto ?? "NINGUNA") : "NINGUNA",
       saltarSiRespuesta: saltarSiRespuesta?.trim() || null,
       saltarHastaPreguntaId: saltarHastaPreguntaId || null,
@@ -121,8 +127,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pregun
     },
   });
 
+  await ordenarSecundarias(actual.modulo.esquemaId);
   await renumerarOrdenPanel(actual.modulo.esquemaId);
-  return NextResponse.json({ ...pregunta, opciones: JSON.parse(pregunta.opciones) });
+  const preguntaFinal = (await db.pregunta.findUnique({ where: { id } })) ?? pregunta;
+  return NextResponse.json({ ...preguntaFinal, opciones: JSON.parse(preguntaFinal.opciones) });
 }
 
 export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/preguntas/[id]">) {

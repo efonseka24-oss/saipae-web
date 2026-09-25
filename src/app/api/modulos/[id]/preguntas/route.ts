@@ -12,6 +12,7 @@ import {
 import { plantillaSubPreguntasAuto } from "@/lib/subpreguntasAuto";
 import { reordenarGruposFinales } from "@/lib/reordenarGruposFinales";
 import { ORDEN_PANEL_AL_FINAL, renumerarOrdenPanel } from "@/lib/ordenPanel";
+import { ORDEN_SECUNDARIA_AL_FINAL, ordenarSecundarias } from "@/lib/ordenSecundarias";
 
 export async function GET(_request: NextRequest, ctx: RouteContext<"/api/modulos/[id]/preguntas">) {
   const sesion = await obtenerSesion();
@@ -114,7 +115,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
       validacion: conFuente ? "NINGUNA" : (validacion ?? "NINGUNA"),
       fuenteOpciones: fuente,
       obligatoria: obligatoria ?? true,
-      orden: typeof orden === "number" ? orden : 0,
+      // Las secundarias toman su orden de la principal (ver ordenarSecundarias).
+      orden: clase === "SECUNDARIA" ? ORDEN_SECUNDARIA_AL_FINAL : typeof orden === "number" ? orden : 0,
       // Nueva pregunta: al final de su módulo en el panel (se renumera abajo).
       ordenPanel: ORDEN_PANEL_AL_FINAL,
       generarSubPreguntasAuto: generarSubPreguntasAuto ?? "NINGUNA",
@@ -155,6 +157,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
   if (pregunta.generarSubPreguntasAuto === "MATERIA_PRIMA" || pregunta.generarSubPreguntasAuto === "ORGANOLEPTICO") {
     await reordenarGruposFinales(modulo.esquemaId);
   }
+  await ordenarSecundarias(modulo.esquemaId);
   await renumerarOrdenPanel(modulo.esquemaId);
   const preguntaFinal = (await db.pregunta.findUnique({ where: { id: pregunta.id } })) ?? pregunta;
 

@@ -1,8 +1,10 @@
 // Opciones de las preguntas cuyo origen es el módulo Registro (lote, zode,
-// municipio, institución, sede) o los usuarios del panel. Las de Registro se
-// filtran en cascada según lo ya respondido en la visita: una pregunta mira la
-// respuesta MÁS CERCANA ANTERIOR del nivel superior (así, en CCT, la sede del
-// comedor satélite se filtra por la institución del comedor satélite).
+// municipio, institución, sede, operador) o los usuarios del panel. Las de
+// Registro se filtran en cascada según lo ya respondido en la visita: una
+// pregunta mira la respuesta MÁS CERCANA ANTERIOR del nivel superior (así, en
+// CCT, la sede del comedor satélite se filtra por la institución del comedor
+// satélite). El operador pertenece a un zode: se filtra por el zode (o lote)
+// de la respuesta de Registro más cercana anterior.
 //
 // La app móvil replica esta misma lógica en Kotlin (OpcionesRegistro.kt).
 
@@ -14,6 +16,8 @@ export type CatalogoRegistro = {
   municipios: ItemRegistro[];
   instituciones: ItemRegistro[];
   sedes: ItemRegistro[];
+  // padreId = id del zode del operador.
+  operadores: ItemRegistro[];
 };
 
 export type UsuarioCorreo = { correo: string | null; nombre: string };
@@ -68,6 +72,29 @@ function candidatos(catalogo: CatalogoRegistro, flujo: PreguntaFlujo[], posicion
   return todos;
 }
 
+// Operadores del zode (o lote) de la respuesta de Registro más cercana anterior;
+// todos si todavía no se ha respondido ninguna.
+function operadoresPara(catalogo: CatalogoRegistro, flujo: PreguntaFlujo[], posicion: number): ItemRegistro[] {
+  for (let i = posicion - 1; i >= 0; i--) {
+    const previa = flujo[i];
+    const nivel = NIVELES.indexOf(previa.fuenteOpciones as Nivel);
+    if (nivel < 0 || !previa.valor) continue;
+    const elegido = candidatos(catalogo, flujo, i).find((item) => item.nombre === previa.valor);
+    if (!elegido) continue;
+    if (nivel === 0) {
+      const zodesDelLote = new Set(catalogo.zodes.filter((z) => z.padreId === elegido.id).map((z) => z.id));
+      return catalogo.operadores.filter((o) => o.padreId !== null && zodesDelLote.has(o.padreId));
+    }
+    let zode: ItemRegistro | undefined = elegido;
+    for (let k = nivel; k > 1 && zode; k--) {
+      const padreId: string | null = zode.padreId;
+      zode = padreId ? itemsDe(catalogo, NIVELES[k - 1]).find((item) => item.id === padreId) : undefined;
+    }
+    if (zode) return catalogo.operadores.filter((o) => o.padreId === zode.id);
+  }
+  return catalogo.operadores;
+}
+
 // Opciones (nombres) para una pregunta; null si sus opciones no vienen de
 // Registro/usuarios (se usan las escritas en la pregunta).
 export function opcionesDesdeRegistro(
@@ -80,6 +107,7 @@ export function opcionesDesdeRegistro(
   if (posicion < 0) return null;
   const fuente = flujo[posicion].fuenteOpciones;
   if (fuente === "USUARIO") return usuarios.map((u) => u.correo).filter((c): c is string => Boolean(c));
+  if (fuente === "OPERADOR") return [...new Set(operadoresPara(catalogo, flujo, posicion).map((i) => i.nombre))];
   if (!NIVELES.includes(fuente as Nivel)) return null;
   return [...new Set(candidatos(catalogo, flujo, posicion).map((i) => i.nombre))];
 }

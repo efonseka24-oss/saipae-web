@@ -97,7 +97,7 @@ export function esGenerarSubPreguntasAuto(valor: string): valor is GenerarSubPre
 // pregunta) o tomadas del módulo Registro / de los usuarios del panel. Las de
 // Registro se filtran en cascada: al elegir un municipio, la pregunta de
 // institución solo ofrece las de ese municipio, y así sucesivamente.
-export const FUENTES_OPCIONES = ["NINGUNA", "LOTE", "ZODE", "MUNICIPIO", "INSTITUCION", "SEDE", "USUARIO"] as const;
+export const FUENTES_OPCIONES = ["NINGUNA", "LOTE", "ZODE", "MUNICIPIO", "INSTITUCION", "SEDE", "OPERADOR", "USUARIO"] as const;
 export type FuenteOpciones = (typeof FUENTES_OPCIONES)[number];
 
 export const ETIQUETAS_FUENTE_OPCIONES: Record<FuenteOpciones, string> = {
@@ -107,6 +107,7 @@ export const ETIQUETAS_FUENTE_OPCIONES: Record<FuenteOpciones, string> = {
   MUNICIPIO: "Municipios (Registro)",
   INSTITUCION: "Instituciones (Registro)",
   SEDE: "Sedes (Registro)",
+  OPERADOR: "Operadores (Registro, según el zode)",
   USUARIO: "Correos de los usuarios (interventor)",
 };
 

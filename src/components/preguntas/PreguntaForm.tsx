@@ -281,6 +281,8 @@ export function PreguntaForm({
               <p className="mt-1 text-xs text-slate-500">
                 {fuenteOpciones === "USUARIO"
                   ? "La app muestra los correos de los usuarios activos del panel; la visita queda unida a ese usuario."
+                  : fuenteOpciones === "OPERADOR"
+                  ? "La app muestra los operadores de Registro del zode elegido antes en la visita (o del zode del municipio, institución o sede elegidos). No cuenta en estadísticas."
                   : "Las opciones se cargan del módulo Registro y se filtran según lo elegido antes en la visita (lote → zode → municipio → institución → sede). No cuenta en estadísticas."}
               </p>
             )}
@@ -345,15 +347,23 @@ export function PreguntaForm({
           </>
         )}
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Orden</label>
-          <input
-            type="number"
-            value={orden}
-            onChange={(e) => setOrden(Number(e.target.value))}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+        {/* Solo las principales tienen orden: las secundarias van justo después de su principal. */}
+        {clase === "PRINCIPAL" ? (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Orden</label>
+            <input
+              type="number"
+              value={orden}
+              onChange={(e) => setOrden(Number(e.target.value))}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Orden</label>
+            <p className="py-2 text-sm text-slate-500">Va justo después de su pregunta principal.</p>
+          </div>
+        )}
 
         <div className="flex items-end pb-2">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
