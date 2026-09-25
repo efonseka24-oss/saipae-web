@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tokenAppValido } from "@/lib/tokenApp";
+import { anotarAuditoria, conAuditoria } from "@/lib/auditoria";
 
 // Preguntas del encabezado de la visita, reconocidas por el inicio de su texto
 // (son las mismas en RPS, RI, CCT, Bodega y Bodega Administrativa).
@@ -19,7 +20,7 @@ const ENCABEZADO: { campo: "municipio" | "institucion" | "sede" | "operador"; pa
   { campo: "operador", patron: /^NOMBRE DEL OPERADOR/i },
 ];
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   if (!tokenAppValido(request)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
@@ -127,6 +128,15 @@ export async function POST(request: NextRequest) {
     return guardada;
   }, { timeout: 60_000 });
 
+  anotarAuditoria(request, {
+    accion: "Recibió visita",
+    descripcion: [
+      `Recibió visita de ${esquema.nombre}`,
+      [encabezado.municipio, encabezado.sede ?? encabezado.institucion].filter(Boolean).join(" - "),
+      correoInterventor ? `interventor ${correoInterventor}` : "sin interventor",
+      `${valores.length} respuestas`,
+    ].filter(Boolean).join(" · "),
+  });
   return NextResponse.json({
     visitaId: visita.id,
     respuestasGuardadas: valores.length,
@@ -134,3 +144,5 @@ export async function POST(request: NextRequest) {
     interventorEncontrado: Boolean(interventor),
   });
 }
+
+export const POST = conAuditoria(manejarPOST);

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
+import { conAuditoria } from "@/lib/auditoria";
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/registro/departamentos/[id]">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/registro/departamentos/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -20,7 +21,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/regist
   }
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/registro/departamentos/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/registro/departamentos/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -35,3 +36,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/regi
     );
   }
 }
+
+export const PATCH = conAuditoria(manejarPATCH);
+export const DELETE = conAuditoria(manejarDELETE);

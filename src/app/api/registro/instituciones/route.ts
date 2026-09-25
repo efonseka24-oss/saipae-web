@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { serializarTiposRacion } from "@/lib/racionesPae";
+import { conAuditoria } from "@/lib/auditoria";
 
 const INCLUIR = {
   municipio: {
@@ -20,7 +21,7 @@ export async function GET() {
   return NextResponse.json(instituciones);
 }
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -54,3 +55,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Ya existe una institución con ese número DANE." }, { status: 409 });
   }
 }
+
+export const POST = conAuditoria(manejarPOST);

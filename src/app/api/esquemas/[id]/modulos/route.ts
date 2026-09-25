@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
+import { conAuditoria } from "@/lib/auditoria";
 
 export async function GET(_request: NextRequest, ctx: RouteContext<"/api/esquemas/[id]/modulos">) {
   const sesion = await obtenerSesion();
@@ -15,7 +16,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/esquema
   return NextResponse.json(modulos);
 }
 
-export async function POST(request: NextRequest, ctx: RouteContext<"/api/esquemas/[id]/modulos">) {
+async function manejarPOST(request: NextRequest, ctx: RouteContext<"/api/esquemas/[id]/modulos">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -53,3 +54,5 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/esquema
     return NextResponse.json({ error: "Ya existe un módulo con ese nombre en este esquema." }, { status: 409 });
   }
 }
+
+export const POST = conAuditoria(manejarPOST);

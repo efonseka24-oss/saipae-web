@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { esTipoActaCaes } from "@/lib/actasCaes";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 
@@ -23,7 +24,7 @@ export async function GET() {
   return NextResponse.json(actas);
 }
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -77,3 +78,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(acta, { status: 201 });
 }
+
+export const POST = conAuditoria(manejarPOST);

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { DatabaseBackup, ScrollText } from "lucide-react";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -17,7 +19,25 @@ export default async function AdministradorPage() {
       <PageHeader
         titulo="Administrador"
         descripcion="Crea y edita los usuarios del panel. Cédula, nombre, cargo, correo y firma son obligatorios: el correo une las visitas de la app con su interventor y la cédula sirve para reiniciar la clave."
-        acciones={<NuevoUsuarioForm />}
+        acciones={
+          <div className="flex shrink-0 items-start gap-2">
+            <Link
+              href="/administrador/auditoria"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <ScrollText className="h-4 w-4" />
+              Auditoría
+            </Link>
+            <Link
+              href="/administrador/respaldo"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <DatabaseBackup className="h-4 w-4" />
+              Copia de seguridad
+            </Link>
+            <NuevoUsuarioForm />
+          </div>
+        }
       />
 
       <Card>

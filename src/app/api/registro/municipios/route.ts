@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
+import { conAuditoria } from "@/lib/auditoria";
 
 const INCLUIR_ZODE = {
   zode: { include: { lote: { include: { departamento: { select: { id: true, nombre: true } } } } } },
@@ -17,7 +18,7 @@ export async function GET() {
   return NextResponse.json(municipios);
 }
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -42,3 +43,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Ya existe un municipio con ese nombre en ese zode." }, { status: 409 });
   }
 }
+
+export const POST = conAuditoria(manejarPOST);

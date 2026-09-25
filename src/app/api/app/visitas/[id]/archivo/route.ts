@@ -6,10 +6,11 @@ import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tokenAppValido } from "@/lib/tokenApp";
+import { anotarAuditoria, conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 25 * 1024 * 1024; // 25 MB
 
-export async function POST(request: NextRequest, ctx: RouteContext<"/api/app/visitas/[id]/archivo">) {
+async function manejarPOST(request: NextRequest, ctx: RouteContext<"/api/app/visitas/[id]/archivo">) {
   if (!tokenAppValido(request)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
@@ -63,5 +64,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/app/vis
     create: { visitaId, preguntaId, archivoUrl: url },
   });
 
+  anotarAuditoria(request, { accion: "Recibió archivo", descripcion: `Recibió archivo de la visita ${visitaId}: ${nombreArchivo}` });
   return NextResponse.json({ archivoUrl: url });
 }
+
+export const POST = conAuditoria(manejarPOST);

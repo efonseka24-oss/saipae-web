@@ -6,6 +6,7 @@ import { obtenerSesion } from "@/lib/auth";
 import { siguienteRadicadoSalida } from "@/lib/pqrsRadicados";
 import { generarRespuestaPqrs } from "@/lib/generarRespuestaPqrs";
 import { convertirDocxAPdf } from "@/lib/convertirPdf";
+import { conAuditoria } from "@/lib/auditoria";
 
 const INCLUIR_PETICION = {
   responsable: { select: { id: true, nombre: true, cargo: true } },
@@ -50,7 +51,7 @@ async function generarYGuardarDocumento(peticionId: string) {
   });
 }
 
-export async function POST(request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]/respuesta">) {
+async function manejarPOST(request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]/respuesta">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/pqrs/pe
   return NextResponse.json(actualizada, { status: 201 });
 }
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]/respuesta">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]/respuesta">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -98,3 +99,6 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pqrs/p
   const actualizada = await db.peticionPqrs.findUnique({ where: { id }, include: INCLUIR_PETICION });
   return NextResponse.json(actualizada);
 }
+
+export const POST = conAuditoria(manejarPOST);
+export const PATCH = conAuditoria(manejarPATCH);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { serializarTiposRacion, racionesNoPermitidas } from "@/lib/racionesPae";
+import { conAuditoria } from "@/lib/auditoria";
 
 const INCLUIR = {
   institucion: {
@@ -13,7 +14,7 @@ const INCLUIR = {
   },
 } as const;
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/registro/sedes/[id]">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/registro/sedes/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -58,7 +59,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/regist
   }
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/registro/sedes/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/registro/sedes/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -66,3 +67,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/regi
   await db.sede.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = conAuditoria(manejarPATCH);
+export const DELETE = conAuditoria(manejarDELETE);

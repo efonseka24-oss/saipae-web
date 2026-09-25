@@ -3,11 +3,12 @@ import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { obtenerSesion } from "@/lib/auth";
 import { categoriaComoToken, nombrePlantilla } from "@/lib/mapasPlantillas";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-export async function POST(
+async function manejarPOST(
   request: NextRequest,
   ctx: RouteContext<"/api/editor-formatos/[categoria]/reemplazar">
 ) {
@@ -49,3 +50,5 @@ export async function POST(
 
   return NextResponse.json({ ok: true });
 }
+
+export const POST = conAuditoria(manejarPOST);

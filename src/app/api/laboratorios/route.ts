@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { esResultadoLaboratorio, esCumplimientoMuestra, NUMERO_DETALLES_MUESTRA } from "@/lib/laboratorios";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 const TIPOS_ARCHIVO_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png"];
@@ -147,7 +148,7 @@ export async function GET() {
   return NextResponse.json(laboratorios);
 }
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -194,3 +195,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(laboratorio, { status: 201 });
 }
+
+export const POST = conAuditoria(manejarPOST);

@@ -11,8 +11,9 @@ import {
   esGenerarSubPreguntasAuto,
   esFuenteOpciones,
 } from "@/lib/preguntas";
+import { conAuditoria } from "@/lib/auditoria";
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/preguntas/[id]">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/preguntas/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -133,7 +134,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pregun
   return NextResponse.json({ ...preguntaFinal, opciones: JSON.parse(preguntaFinal.opciones) });
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/preguntas/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/preguntas/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -143,3 +144,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/preg
   await db.pregunta.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = conAuditoria(manejarPATCH);
+export const DELETE = conAuditoria(manejarDELETE);

@@ -13,6 +13,7 @@ import { plantillaSubPreguntasAuto } from "@/lib/subpreguntasAuto";
 import { reordenarGruposFinales } from "@/lib/reordenarGruposFinales";
 import { ORDEN_PANEL_AL_FINAL, renumerarOrdenPanel } from "@/lib/ordenPanel";
 import { ORDEN_SECUNDARIA_AL_FINAL, ordenarSecundarias } from "@/lib/ordenSecundarias";
+import { conAuditoria } from "@/lib/auditoria";
 
 export async function GET(_request: NextRequest, ctx: RouteContext<"/api/modulos/[id]/preguntas">) {
   const sesion = await obtenerSesion();
@@ -28,7 +29,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/modulos
   );
 }
 
-export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos/[id]/preguntas">) {
+async function manejarPOST(request: NextRequest, ctx: RouteContext<"/api/modulos/[id]/preguntas">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -163,3 +164,5 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/modulos
 
   return NextResponse.json({ ...preguntaFinal, opciones: JSON.parse(preguntaFinal.opciones) }, { status: 201 });
 }
+
+export const POST = conAuditoria(manejarPOST);

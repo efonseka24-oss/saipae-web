@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { esResultadoLaboratorio, esCumplimientoMuestra, NUMERO_DETALLES_MUESTRA } from "@/lib/laboratorios";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 const TIPOS_ARCHIVO_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png"];
@@ -140,7 +141,7 @@ async function validarDatosFormulario(formData: FormData) {
   };
 }
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/laboratorios/[id]">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/laboratorios/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -198,7 +199,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/labora
   return NextResponse.json(laboratorio);
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/laboratorios/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/laboratorios/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -211,3 +212,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/labo
 
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = conAuditoria(manejarPATCH);
+export const DELETE = conAuditoria(manejarDELETE);

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { obtenerSesion } from "@/lib/auth";
 import { idsVisitasDelGrupo, calcularEstadisticasVisitas } from "@/lib/estadisticasPreguntas";
 import { ETIQUETAS_AGRUPACION, type AgrupacionEstadistica } from "@/lib/estadisticasEncuestas";
+import { conAuditoria } from "@/lib/auditoria";
 
 function esAgrupacionValida(valor: string): valor is AgrupacionEstadistica {
   return valor in ETIQUETAS_AGRUPACION;
 }
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -25,3 +26,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ totalEncuestas: visitaIds.length, esquemas });
 }
+
+export const POST = conAuditoria(manejarPOST);

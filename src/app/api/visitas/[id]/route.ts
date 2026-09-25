@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { esEstadoVisita } from "@/lib/visitas";
+import { conAuditoria } from "@/lib/auditoria";
 
 export async function GET(_request: NextRequest, ctx: RouteContext<"/api/visitas/[id]">) {
   const sesion = await obtenerSesion();
@@ -16,7 +17,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/visitas
   return NextResponse.json(visita);
 }
 
-export async function PUT(request: NextRequest, ctx: RouteContext<"/api/visitas/[id]">) {
+async function manejarPUT(request: NextRequest, ctx: RouteContext<"/api/visitas/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -48,7 +49,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext<"/api/visitas/
   }
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/visitas/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/visitas/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -56,3 +57,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/visi
   await db.visita.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
+
+export const PUT = conAuditoria(manejarPUT);
+export const DELETE = conAuditoria(manejarDELETE);

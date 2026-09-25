@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { obtenerSesion } from "@/lib/auth";
 import { procesarCargaMasivaRegistro } from "@/lib/cargaMasivaRegistro";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024; // 5 MB
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -28,3 +29,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(resultado);
 }
+
+export const POST = conAuditoria(manejarPOST);

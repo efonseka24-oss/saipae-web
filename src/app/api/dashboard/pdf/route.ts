@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { obtenerSesion } from "@/lib/auth";
 import { generarDashboardPdf } from "@/lib/generarDashboardPdf";
+import { conAuditoria } from "@/lib/auditoria";
 
-export async function GET() {
+async function manejarGET() {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -15,3 +16,5 @@ export async function GET() {
     },
   });
 }
+
+export const GET = conAuditoria(manejarGET);

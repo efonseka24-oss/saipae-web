@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { esTipoPeticionPqrs } from "@/lib/pqrs";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 const TIPOS_ARCHIVO_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png"];
@@ -60,7 +61,7 @@ async function validarDatosFormulario(formData: FormData) {
   };
 }
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -109,7 +110,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/pqrs/p
   return NextResponse.json(peticion);
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/pqrs/peticiones/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -124,3 +125,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/pqrs
 
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = conAuditoria(manejarPATCH);
+export const DELETE = conAuditoria(manejarDELETE);

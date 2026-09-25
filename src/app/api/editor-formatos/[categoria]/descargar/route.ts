@@ -3,8 +3,9 @@ import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { obtenerSesion } from "@/lib/auth";
 import { categoriaComoToken, nombrePlantilla } from "@/lib/mapasPlantillas";
+import { conAuditoria } from "@/lib/auditoria";
 
-export async function GET(
+async function manejarGET(
   _request: NextRequest,
   ctx: RouteContext<"/api/editor-formatos/[categoria]/descargar">
 ) {
@@ -29,3 +30,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = conAuditoria(manejarGET);

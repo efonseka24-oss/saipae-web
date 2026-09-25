@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
+import { conAuditoria } from "@/lib/auditoria";
 
 const ID_EMPRESA = "empresa";
 
@@ -23,7 +24,7 @@ export async function GET() {
   return NextResponse.json(datos);
 }
 
-export async function PUT(request: NextRequest) {
+async function manejarPUT(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -102,3 +103,5 @@ export async function PUT(request: NextRequest) {
 
   return NextResponse.json(datos);
 }
+
+export const PUT = conAuditoria(manejarPUT);

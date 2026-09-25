@@ -3,10 +3,11 @@ import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 15 * 1024 * 1024; // 15 MB
 
-export async function POST(request: NextRequest, ctx: RouteContext<"/api/visitas/[id]/respuestas/archivo">) {
+async function manejarPOST(request: NextRequest, ctx: RouteContext<"/api/visitas/[id]/respuestas/archivo">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -50,3 +51,5 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/visitas
 
   return NextResponse.json(respuesta);
 }
+
+export const POST = conAuditoria(manejarPOST);

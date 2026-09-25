@@ -8,8 +8,9 @@ import { generarReportePlantilla } from "@/lib/generarReportePlantilla";
 import { generarReporteGrupoEspecial } from "@/lib/generarReporteGrupoEspecial";
 import { esTipoGrupoEspecial } from "@/lib/plantillaPreguntas";
 import { convertirDocxAPdf } from "@/lib/convertirPdf";
+import { conAuditoria } from "@/lib/auditoria";
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -73,3 +74,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ documentos });
 }
+
+export const POST = conAuditoria(manejarPOST);

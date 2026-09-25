@@ -445,3 +445,30 @@ model RespuestaPqrs {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
+
+// Registro de auditoría: quién hizo qué y cuándo en el panel (inicios de
+// sesión, páginas visitadas, cambios y descargas) y lo que llega de la app.
+// Guarda el usuario como texto (sin relación) para que el historial no se
+// pierda si el usuario se elimina.
+model Auditoria {
+  id          String   @id @default(cuid())
+  fecha       DateTime @default(now())
+  usuarioId   String?
+  usuario     String // login, o "app-movil" / "anonimo"
+  nombre      String?
+  // SESION | NAVEGACION | ACCION | APP | RESPALDO
+  tipo        String
+  modulo      String?
+  accion      String
+  descripcion String
+  metodo      String?
+  ruta        String?
+  estado      Int?
+  exito       Boolean  @default(true)
+  ip          String?
+  agente      String?
+
+  @@index([fecha])
+  @@index([usuarioId])
+  @@index([tipo])
+}

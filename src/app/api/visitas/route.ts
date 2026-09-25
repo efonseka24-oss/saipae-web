@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
+import { conAuditoria } from "@/lib/auditoria";
 
 export async function GET(request: NextRequest) {
   const sesion = await obtenerSesion();
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(visitas);
 }
 
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -48,3 +49,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(visita, { status: 201 });
 }
+
+export const POST = conAuditoria(manejarPOST);

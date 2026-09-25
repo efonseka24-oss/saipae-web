@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { obtenerSesion } from "@/lib/auth";
 import { generarReporteEstadisticas } from "@/lib/generarReporteEstadisticas";
+import { conAuditoria } from "@/lib/auditoria";
 
 const NIVELES = ["departamento", "lote", "zode", "municipio"] as const;
 
-export async function GET() {
+async function manejarGET() {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -17,3 +18,5 @@ export async function GET() {
     },
   });
 }
+
+export const GET = conAuditoria(manejarGET);

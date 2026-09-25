@@ -6,11 +6,12 @@ import { obtenerSesion } from "@/lib/auth";
 import { generarReportePlantilla } from "@/lib/generarReportePlantilla";
 import { generarReporteGrupoEspecial } from "@/lib/generarReporteGrupoEspecial";
 import { esTipoGrupoEspecial } from "@/lib/plantillaPreguntas";
+import { conAuditoria } from "@/lib/auditoria";
 
 // Genera el .docx de la plantilla usando la visita más reciente de uno de
 // sus esquemas vinculados, para que el administrador pueda revisar el
 // resultado sin salir del editor.
-export async function POST(request: NextRequest, ctx: RouteContext<"/api/plantillas/[plantillaId]/prueba">) {
+async function manejarPOST(request: NextRequest, ctx: RouteContext<"/api/plantillas/[plantillaId]/prueba">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -53,3 +54,5 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/plantil
 
   return NextResponse.json({ docxUrl: `/generados/plantillas-prueba/${nombreArchivo}` });
 }
+
+export const POST = conAuditoria(manejarPOST);

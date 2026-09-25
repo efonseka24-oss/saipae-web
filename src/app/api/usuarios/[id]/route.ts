@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { serializarModulosPermitidos } from "@/lib/permisosModulos";
 import { esCorreoValido } from "@/lib/firmaUsuario";
+import { conAuditoria } from "@/lib/auditoria";
 
 const SELECCION_USUARIO = {
   id: true,
@@ -17,7 +18,7 @@ const SELECCION_USUARIO = {
   modulosPermitidos: true,
 } as const;
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/usuarios/[id]">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/usuarios/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -72,7 +73,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/usuari
   }
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/usuarios/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/usuarios/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -90,3 +91,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/usua
   await db.usuario.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = conAuditoria(manejarPATCH);
+export const DELETE = conAuditoria(manejarDELETE);

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { serializarModulosPermitidos, TODOS_LOS_MODULOS_IDS } from "@/lib/permisosModulos";
 import { esCorreoValido, guardarFirma, validarFirma } from "@/lib/firmaUsuario";
+import { conAuditoria } from "@/lib/auditoria";
 
 const SELECCION_USUARIO = {
   id: true,
@@ -31,7 +32,7 @@ export async function GET() {
 // Crea un usuario. Llega como multipart (FormData) porque la firma es
 // obligatoria y se sube junto con los datos: cédula, nombre, cargo, correo y
 // firma son requeridos (el correo une las visitas de la app con el usuario).
-export async function POST(request: NextRequest) {
+async function manejarPOST(request: NextRequest) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -92,3 +93,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No se pudo guardar la firma. Intenta de nuevo." }, { status: 500 });
   }
 }
+
+export const POST = conAuditoria(manejarPOST);

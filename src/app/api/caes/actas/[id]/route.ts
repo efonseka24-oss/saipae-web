@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { esTipoActaCaes } from "@/lib/actasCaes";
+import { conAuditoria } from "@/lib/auditoria";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 
@@ -19,7 +20,7 @@ function rutaPublica(url: string): string {
   return path.join(process.cwd(), "public", url.replace(/^\//, ""));
 }
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/caes/actas/[id]">) {
+async function manejarPATCH(request: NextRequest, ctx: RouteContext<"/api/caes/actas/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -77,7 +78,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/caes/a
   return NextResponse.json(acta);
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/caes/actas/[id]">) {
+async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/caes/actas/[id]">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -90,3 +91,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/caes
 
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = conAuditoria(manejarPATCH);
+export const DELETE = conAuditoria(manejarDELETE);

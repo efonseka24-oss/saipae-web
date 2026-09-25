@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 import { guardarFirma, validarFirma } from "@/lib/firmaUsuario";
+import { conAuditoria } from "@/lib/auditoria";
 
-export async function POST(request: NextRequest, ctx: RouteContext<"/api/usuarios/[id]/firma">) {
+async function manejarPOST(request: NextRequest, ctx: RouteContext<"/api/usuarios/[id]/firma">) {
   const sesion = await obtenerSesion();
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -25,3 +26,5 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/usuario
 
   return NextResponse.json(actualizado);
 }
+
+export const POST = conAuditoria(manejarPOST);
