@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { ETIQUETAS_TIPO_AUDITORIA, type TipoAuditoria } from "@/lib/auditoria";
+import { ETIQUETAS_TIPO_AUDITORIA, MESES_CONSERVAR_AUDITORIA, type TipoAuditoria } from "@/lib/auditoria";
 import { formatearFechaColombia, leerFiltrosAuditoria, whereAuditoria } from "@/lib/consultaAuditoria";
 
 const POR_PAGINA = 50;
@@ -15,6 +15,7 @@ const VARIANTE_TIPO: Record<TipoAuditoria, "slate" | "blue" | "green" | "amber" 
   ACCION: "amber",
   APP: "green",
   RESPALDO: "red",
+  SISTEMA: "slate",
 };
 
 const CLASE_CAMPO =
@@ -55,7 +56,7 @@ export default async function AuditoriaPage(props: PageProps<"/administrador/aud
 
       <PageHeader
         titulo="Auditoría"
-        descripcion="Registro de lo que hace cada usuario en el sistema: inicios de sesión, páginas que abre, cambios, descargas, copias de seguridad y visitas que llegan desde la app. Horas en hora de Colombia."
+        descripcion={`Registro de lo que hace cada usuario en el sistema: inicios de sesión, páginas que abre, cambios, descargas, copias de seguridad y visitas que llegan desde la app. Horas en hora de Colombia. Se conservan los últimos ${MESES_CONSERVAR_AUDITORIA} meses; lo anterior se borra solo.`}
         acciones={
           <a
             href={`/api/administrador/auditoria/csv?${conFiltros({})}`}

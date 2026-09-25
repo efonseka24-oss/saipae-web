@@ -11,7 +11,7 @@ import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerSesion } from "@/lib/auth";
 
-export type TipoAuditoria = "SESION" | "NAVEGACION" | "ACCION" | "APP" | "RESPALDO";
+export type TipoAuditoria = "SESION" | "NAVEGACION" | "ACCION" | "APP" | "RESPALDO" | "SISTEMA";
 
 export const ETIQUETAS_TIPO_AUDITORIA: Record<TipoAuditoria, string> = {
   SESION: "Sesión",
@@ -19,7 +19,37 @@ export const ETIQUETAS_TIPO_AUDITORIA: Record<TipoAuditoria, string> = {
   ACCION: "Cambio / acción",
   APP: "App móvil",
   RESPALDO: "Copia de seguridad",
+  SISTEMA: "Sistema",
 };
+
+// La auditoría solo conserva los últimos 3 meses: lo anterior se borra solo.
+export const MESES_CONSERVAR_AUDITORIA = 3;
+const INTERVALO_LIMPIEZA_MS = 6 * 60 * 60 * 1000; // revisa como mucho cada 6 horas
+let ultimaLimpieza = 0;
+
+async function limpiarAuditoriaAntigua(): Promise<void> {
+  const ahora = Date.now();
+  if (ahora - ultimaLimpieza < INTERVALO_LIMPIEZA_MS) return;
+  ultimaLimpieza = ahora;
+  try {
+    const limite = new Date(ahora);
+    limite.setMonth(limite.getMonth() - MESES_CONSERVAR_AUDITORIA);
+    const { count } = await db.auditoria.deleteMany({ where: { fecha: { lt: limite } } });
+    if (count > 0) {
+      await db.auditoria.create({
+        data: {
+          tipo: "SISTEMA",
+          accion: "Limpió la auditoría",
+          descripcion: `Borró ${count} registro(s) de auditoría de más de ${MESES_CONSERVAR_AUDITORIA} meses`,
+          modulo: "Administrador",
+          usuario: "sistema",
+        },
+      });
+    }
+  } catch (error) {
+    console.error("No se pudo limpiar la auditoría antigua:", error);
+  }
+}
 
 export type DatosAuditoria = {
   tipo: TipoAuditoria;
@@ -39,6 +69,7 @@ export type DatosAuditoria = {
 
 // Nunca lanza: un fallo al auditar no debe tumbar la acción del usuario.
 export async function registrarAuditoria(datos: DatosAuditoria): Promise<void> {
+  void limpiarAuditoriaAntigua();
   try {
     await db.auditoria.create({
       data: {
