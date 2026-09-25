@@ -1,8 +1,8 @@
 // Copia de seguridad completa del sistema en un ZIP, y su restauración.
 //
 // El ZIP trae todo lo necesario para reconstruir el servidor:
-//   base-de-datos/saipae.db       copia exacta de la base SQLite (la que se restaura)
-//   datos/<Tabla>.json            cada tabla en JSON, para revisarla sin programas
+//   datos/<Tabla>.json            cada tabla de la base (MySQL) en JSON: se puede
+//                                 revisar sin programas y es lo que se restaura
 //   visitas/<esquema>/<visita>/   cada visita con sus respuestas (JSON y CSV para
 //                                 Excel), sus archivos cargados y sus documentos
 //                                 generados
@@ -15,25 +15,24 @@
 //
 // Los archivos no se duplican: cada uno está una sola vez en el ZIP, en la
 // carpeta más fácil de revisar, y el manifiesto dice a dónde vuelve.
+//
+// Formato 1: copias de cuando la base era SQLite (traen base-de-datos/saipae.db).
+// Formato 2: base MySQL, los datos van en datos/*.json. Se restauran los dos.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import Database from "better-sqlite3";
-import { Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from "fflate";
+import { pipeline } from "node:stream/promises";
+import zlib from "node:zlib";
+import { Zip, ZipDeflate, ZipPassThrough, strToU8, zipSync } from "fflate";
 import { db } from "@/lib/db";
+import { cargarTablas, leerTablasSqlite, migracionesServidor, volcarTablas, type Fila } from "@/lib/tablasRespaldo";
 
 export const FORMATO_RESPALDO = "saipae-respaldo";
-export const VERSION_FORMATO = 1;
+export const VERSION_FORMATO = 2;
 
 const CARPETA_PUBLICA = path.join(process.cwd(), "public");
 // Extensiones que ya vienen comprimidas: se guardan tal cual (más rápido).
 const SIN_COMPRIMIR = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".docx", ".xlsx", ".pptx", ".zip", ".mp4", ".mov", ".heic"]);
-
-export function rutaBaseDatos(): string {
-  const url = process.env.DATABASE_URL ?? "file:./dev.db";
-  const ruta = url.replace(/^file:/, "");
-  return path.isAbsolute(ruta) ? ruta : path.resolve(/*turbopackIgnore: true*/ process.cwd(), ruta);
-}
 
 type ArchivoManifiesto = { zip: string; original: string };
 
@@ -42,6 +41,7 @@ export type Manifiesto = {
   version: number;
   creadoEn: string;
   creadoPor: string;
+  motor?: "sqlite" | "mysql";
   migraciones: string[];
   conteos: Record<string, number>;
   archivos: ArchivoManifiesto[];
@@ -116,28 +116,6 @@ function nombreUnico(usados: Set<string>, nombre: string): string {
       return candidato;
     }
   }
-}
-
-// Copia consistente de la base (aunque haya escrituras en curso).
-async function copiarBaseDatos(destino: string): Promise<void> {
-  const origen = new Database(rutaBaseDatos(), { readonly: true, fileMustExist: true });
-  try {
-    await origen.backup(destino);
-  } finally {
-    origen.close();
-  }
-}
-
-function tablasDe(conexion: Database.Database, esquema = "main"): string[] {
-  return (
-    conexion
-      .prepare(`SELECT name FROM "${esquema}".sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
-      .all() as { name: string }[]
-  ).map((t) => t.name);
-}
-
-function columnasDe(conexion: Database.Database, tabla: string, esquema = "main"): { name: string; type: string }[] {
-  return conexion.prepare(`PRAGMA "${esquema}".table_info("${tabla.replace(/"/g, '""')}")`).all() as { name: string; type: string }[];
 }
 
 // --- crear el respaldo -----------------------------------------------------
@@ -215,36 +193,13 @@ export function crearStreamRespaldo(creadoPor: string): ReadableStream<Uint8Arra
         archivosManifiesto.push({ zip: rutaZip, original });
       };
 
-      // 1. Base de datos (copia exacta) y cada tabla en JSON.
-      const copiaDb = path.join(temporal, "saipae.db");
-      await copiarBaseDatos(copiaDb);
-      const conexion = new Database(copiaDb, { readonly: true });
+      // 1. Cada tabla de la base en JSON (leídas en una sola transacción).
+      const { tablas, migraciones } = await volcarTablas();
       const conteos: Record<string, number> = {};
-      let migraciones: string[] = [];
-      try {
-        migraciones = (
-          conexion.prepare(`SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name`).all() as {
-            migration_name: string;
-          }[]
-        ).map((m) => m.migration_name);
-        for (const tabla of tablasDe(conexion).filter((t) => t !== "_prisma_migrations")) {
-          const fechas = columnasDe(conexion, tabla)
-            .filter((c) => c.type.toUpperCase() === "DATETIME")
-            .map((c) => c.name);
-          const filas = (conexion.prepare(`SELECT * FROM "${tabla}"`).all() as Record<string, unknown>[]).map((fila) => {
-            for (const columna of fechas) {
-              const valor = fila[columna];
-              if (typeof valor === "number") fila[columna] = new Date(valor).toISOString();
-            }
-            return fila;
-          });
-          conteos[tabla] = filas.length;
-          await agregarTexto(`datos/${tabla}.json`, JSON.stringify(filas, null, 2));
-        }
-      } finally {
-        conexion.close();
+      for (const [tabla, filas] of Object.entries(tablas)) {
+        conteos[tabla] = filas.length;
+        await agregarTexto(`datos/${tabla}.json`, JSON.stringify(filas, null, 2));
       }
-      await agregarArchivo("base-de-datos/saipae.db", copiaDb);
 
       // 2. Visitas, cada una en su carpeta con respuestas, archivos y documentos.
       const incluidos = new Set<string>();
@@ -354,6 +309,7 @@ export function crearStreamRespaldo(creadoPor: string): ReadableStream<Uint8Arra
       const manifiesto: Manifiesto = {
         formato: FORMATO_RESPALDO,
         version: VERSION_FORMATO,
+        motor: "mysql",
         creadoEn: new Date().toISOString(),
         creadoPor,
         migraciones,
@@ -395,8 +351,8 @@ visitas/<esquema>/<fecha> <municipio> - <sede> [<id>]/
 archivos-cargados/           Resto de archivos subidos al panel: firmas de
                              usuarios, actas CAES, PQRS, laboratorios, logos.
 documentos-generados/        Resto de documentos generados (PQRS, pruebas).
-datos/<Tabla>.json           Cada tabla de la base de datos en JSON.
-base-de-datos/saipae.db      Copia exacta de la base de datos (SQLite).
+datos/<Tabla>.json           Cada tabla de la base de datos (MySQL) en JSON.
+                             Es lo que se usa para restaurar.
 manifiesto.json              Versión del sistema, cantidad de registros por
                              tabla y ruta original de cada archivo.
 
@@ -423,60 +379,78 @@ export type ResultadoRestauracion = {
   filas: number;
   archivos: number;
   archivosFaltantes: number;
-  problemasRelaciones: number;
   copiaPrevia: string;
 };
 
-// Descomprime el ZIP en `destino` sin cargarlo entero en memoria.
+// Descomprime el ZIP en `destino` sin cargarlo entero en memoria. Lee el
+// índice (directorio central) del final del archivo, que dice dónde empieza
+// y cuánto mide cada entrada, y extrae cada una desde el disco. No se lee "en
+// cadena" desde el principio: los .docx guardados sin comprimir son a su vez
+// ZIPs y confundirían a un lector secuencial.
 async function descomprimir(zipRuta: string, destino: string): Promise<void> {
-  const pendientes: Promise<void>[] = [];
-  let errorZip: Error | null = null;
-  const abiertos = new Set<fs.WriteStream>();
-
-  const descompresor = new Unzip((archivo) => {
-    const nombre = archivo.name;
-    if (nombre.endsWith("/")) return;
-    const ruta = path.resolve(destino, nombre);
-    if (!ruta.startsWith(path.resolve(destino) + path.sep)) {
-      errorZip = new Error(`El ZIP trae una ruta no válida: ${nombre}`);
-      return;
-    }
-    fs.mkdirSync(path.dirname(ruta), { recursive: true });
-    const escritor = fs.createWriteStream(ruta);
-    abiertos.add(escritor);
-    pendientes.push(
-      new Promise<void>((resolver, rechazar) => {
-        escritor.on("finish", () => {
-          abiertos.delete(escritor);
-          resolver();
-        });
-        escritor.on("error", rechazar);
-      })
-    );
-    archivo.ondata = (error, datos, final) => {
-      if (error) {
-        errorZip = error;
-        escritor.destroy(error);
-        return;
-      }
-      escritor.write(datos);
-      if (final) escritor.end();
+  const raiz = path.resolve(destino);
+  const descriptor = await fs.promises.open(zipRuta, "r");
+  try {
+    const tamano = (await descriptor.stat()).size;
+    const leer = async (posicion: number, largo: number) => {
+      const buffer = Buffer.alloc(largo);
+      await descriptor.read(buffer, 0, largo, posicion);
+      return buffer;
     };
-    archivo.start();
-  });
-  descompresor.register(UnzipInflate);
 
-  for await (const trozo of fs.createReadStream(zipRuta, { highWaterMark: 1024 * 1024 })) {
-    descompresor.push(trozo as Buffer);
-    if (errorZip) throw errorZip;
-    // Control de flujo: si el disco va más lento, se espera antes de seguir leyendo.
-    for (const escritor of abiertos) {
-      if (escritor.writableNeedDrain) await new Promise<void>((r) => escritor.once("drain", () => r()));
+    // Fin del directorio central: firma 0x06054b50 en los últimos 64 KB.
+    const colaLargo = Math.min(tamano, 65557);
+    const cola = await leer(tamano - colaLargo, colaLargo);
+    let fin = -1;
+    for (let i = cola.length - 22; i >= 0; i--) {
+      if (cola.readUInt32LE(i) === 0x06054b50) {
+        fin = i;
+        break;
+      }
     }
+    if (fin < 0) throw new ErrorRespaldo("El archivo no es un ZIP válido.");
+    const totalEntradas = cola.readUInt16LE(fin + 10);
+    const tamanoDirectorio = cola.readUInt32LE(fin + 12);
+    const inicioDirectorio = cola.readUInt32LE(fin + 16);
+    if (inicioDirectorio + tamanoDirectorio > tamano) throw new ErrorRespaldo("El ZIP está incompleto o dañado.");
+    const directorio = await leer(inicioDirectorio, tamanoDirectorio);
+
+    let p = 0;
+    for (let n = 0; n < totalEntradas; n++) {
+      if (directorio.readUInt32LE(p) !== 0x02014b50) throw new ErrorRespaldo("El índice del ZIP está dañado.");
+      const metodo = directorio.readUInt16LE(p + 10);
+      const tamanoComprimido = directorio.readUInt32LE(p + 20);
+      const largoNombre = directorio.readUInt16LE(p + 28);
+      const largoExtra = directorio.readUInt16LE(p + 30);
+      const largoComentario = directorio.readUInt16LE(p + 32);
+      const inicioLocal = directorio.readUInt32LE(p + 42);
+      const nombre = directorio.toString("utf8", p + 46, p + 46 + largoNombre);
+      p += 46 + largoNombre + largoExtra + largoComentario;
+      if (nombre.endsWith("/")) continue;
+
+      const ruta = path.resolve(raiz, nombre);
+      if (!ruta.startsWith(raiz + path.sep)) throw new ErrorRespaldo(`El ZIP trae una ruta no válida: ${nombre}`);
+      if (metodo !== 0 && metodo !== 8) throw new ErrorRespaldo(`El ZIP usa una compresión no soportada en ${nombre}.`);
+
+      // Los datos empiezan después del encabezado local (su "extra" puede diferir del índice).
+      const local = await leer(inicioLocal, 30);
+      if (local.readUInt32LE(0) !== 0x04034b50) throw new ErrorRespaldo(`El ZIP está dañado en ${nombre}.`);
+      const inicioDatos = inicioLocal + 30 + local.readUInt16LE(26) + local.readUInt16LE(28);
+
+      fs.mkdirSync(path.dirname(ruta), { recursive: true });
+      const salida = fs.createWriteStream(ruta);
+      if (tamanoComprimido === 0) {
+        salida.end();
+        await new Promise<void>((resolver, rechazar) => salida.on("finish", () => resolver()).on("error", rechazar));
+        continue;
+      }
+      const lector = fs.createReadStream(zipRuta, { start: inicioDatos, end: inicioDatos + tamanoComprimido - 1 });
+      if (metodo === 8) await pipeline(lector, zlib.createInflateRaw(), salida);
+      else await pipeline(lector, salida);
+    }
+  } finally {
+    await descriptor.close();
   }
-  descompresor.push(new Uint8Array(0), true);
-  await Promise.all(pendientes);
-  if (errorZip) throw errorZip;
 }
 
 export async function restaurarRespaldo(zipRuta: string): Promise<ResultadoRestauracion> {
@@ -485,9 +459,8 @@ export async function restaurarRespaldo(zipRuta: string): Promise<ResultadoResta
     await descomprimir(zipRuta, temporal);
 
     const rutaManifiesto = path.join(temporal, "manifiesto.json");
-    const rutaDbRespaldo = path.join(temporal, "base-de-datos", "saipae.db");
-    if (!fs.existsSync(rutaManifiesto) || !fs.existsSync(rutaDbRespaldo)) {
-      throw new ErrorRespaldo("El archivo no es una copia de seguridad de SAIPAE (le falta el manifiesto o la base de datos).");
+    if (!fs.existsSync(rutaManifiesto)) {
+      throw new ErrorRespaldo("El archivo no es una copia de seguridad de SAIPAE (le falta el manifiesto).");
     }
     const manifiesto = JSON.parse(fs.readFileSync(rutaManifiesto, "utf8")) as Manifiesto;
     if (manifiesto.formato !== FORMATO_RESPALDO) {
@@ -497,70 +470,42 @@ export async function restaurarRespaldo(zipRuta: string): Promise<ResultadoResta
       throw new ErrorRespaldo("La copia se hizo con una versión más nueva del sistema. Actualice el servidor antes de restaurarla.");
     }
 
-    const rutaDb = rutaBaseDatos();
-    const conexion = new Database(rutaDb);
-    conexion.pragma("busy_timeout = 15000");
-    let copiaPrevia = "";
-    let filas = 0;
-    let tablasRestauradas = 0;
-    let problemasRelaciones = 0;
-    try {
-      // La copia no puede traer migraciones que este servidor no conoce.
-      const migracionesServidor = new Set(
-        (conexion.prepare(`SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL`).all() as { migration_name: string }[]).map(
-          (m) => m.migration_name
-        )
-      );
-      const desconocidas = manifiesto.migraciones.filter((m) => !migracionesServidor.has(m));
+    // Datos de la copia: base SQLite (formato 1) o tablas JSON (formato 2).
+    let origen: Record<string, Fila[]>;
+    if (manifiesto.version === 1) {
+      const rutaSqlite = path.join(temporal, "base-de-datos", "saipae.db");
+      if (!fs.existsSync(rutaSqlite)) throw new ErrorRespaldo("A la copia le falta la base de datos (base-de-datos/saipae.db).");
+      origen = leerTablasSqlite(rutaSqlite);
+    } else {
+      // La copia MySQL no puede traer migraciones que este servidor no conoce.
+      const conocidas = await migracionesServidor();
+      const desconocidas = (manifiesto.migraciones ?? []).filter((m) => !conocidas.has(m));
       if (desconocidas.length > 0) {
         throw new ErrorRespaldo(
           `La copia es de una versión más nueva del sistema (${desconocidas.join(", ")}). Actualice el servidor antes de restaurarla.`
         );
       }
-
-      // Antes de tocar nada, se guarda la base actual por si hay que volver atrás.
-      const carpetaCopias = path.join(path.dirname(rutaDb), "respaldos-automaticos");
-      fs.mkdirSync(carpetaCopias, { recursive: true });
-      copiaPrevia = path.join(carpetaCopias, `antes-de-restaurar-${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
-      await conexion.backup(copiaPrevia);
-
-      conexion.pragma("foreign_keys = OFF");
-      conexion.prepare(`ATTACH DATABASE ? AS respaldo`).run(rutaDbRespaldo);
-      try {
-        const tablasRespaldo = new Set(tablasDe(conexion, "respaldo"));
-        const tablas = tablasDe(conexion).filter((t) => t !== "_prisma_migrations");
-        conexion.transaction(() => {
-          for (const tabla of tablas) {
-            const nombre = `"${tabla.replace(/"/g, '""')}"`;
-            const enRespaldo = tablasRespaldo.has(tabla);
-            const columnasRespaldo = enRespaldo ? new Set(columnasDe(conexion, tabla, "respaldo").map((c) => c.name)) : new Set<string>();
-            const comunes = columnasDe(conexion, tabla)
-              .map((c) => c.name)
-              .filter((c) => columnasRespaldo.has(c))
-              .map((c) => `"${c.replace(/"/g, '""')}"`)
-              .join(", ");
-            // La auditoría no se borra: se le suman los registros de la copia.
-            if (tabla === "Auditoria") {
-              if (enRespaldo && comunes) {
-                filas += conexion.prepare(`INSERT OR IGNORE INTO main.${nombre} (${comunes}) SELECT ${comunes} FROM respaldo.${nombre}`).run().changes;
-              }
-              continue;
-            }
-            conexion.prepare(`DELETE FROM main.${nombre}`).run();
-            if (enRespaldo && comunes) {
-              filas += conexion.prepare(`INSERT INTO main.${nombre} (${comunes}) SELECT ${comunes} FROM respaldo.${nombre}`).run().changes;
-              tablasRestauradas++;
-            }
-          }
-        })();
-        problemasRelaciones = (conexion.prepare(`PRAGMA main.foreign_key_check`).all() as unknown[]).length;
-      } finally {
-        conexion.prepare(`DETACH DATABASE respaldo`).run();
-        conexion.pragma("foreign_keys = ON");
-      }
-    } finally {
-      conexion.close();
+      const carpetaDatos = path.join(temporal, "datos");
+      if (!fs.existsSync(carpetaDatos)) throw new ErrorRespaldo("A la copia le faltan los datos (carpeta datos/).");
+      origen = Object.fromEntries(
+        fs
+          .readdirSync(carpetaDatos)
+          .filter((n) => n.endsWith(".json"))
+          .map((n) => [n.slice(0, -5), JSON.parse(fs.readFileSync(path.join(carpetaDatos, n), "utf8")) as Fila[]])
+      );
     }
+
+    // Antes de tocar nada, se guardan los datos actuales por si hay que volver atrás.
+    const carpetaCopias = process.env.CARPETA_RESPALDOS_AUTOMATICOS ?? path.join(process.cwd(), "data", "respaldos-automaticos");
+    fs.mkdirSync(carpetaCopias, { recursive: true });
+    const copiaPrevia = path.join(carpetaCopias, `antes-de-restaurar-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`);
+    const actual = await volcarTablas();
+    fs.writeFileSync(
+      copiaPrevia,
+      zipSync(Object.fromEntries(Object.entries(actual.tablas).map(([t, filas]) => [`datos/${t}.json`, strToU8(JSON.stringify(filas))])))
+    );
+
+    const { tablas: tablasRestauradas, filas } = await cargarTablas(origen);
 
     // Archivos: cada uno vuelve a su ruta original dentro de public/.
     let archivos = 0;
@@ -584,7 +529,6 @@ export async function restaurarRespaldo(zipRuta: string): Promise<ResultadoResta
       filas,
       archivos,
       archivosFaltantes,
-      problemasRelaciones,
       copiaPrevia,
     };
   } finally {

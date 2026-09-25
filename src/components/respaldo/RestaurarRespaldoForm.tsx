@@ -11,7 +11,6 @@ type Resultado = {
   filas: number;
   archivos: number;
   archivosFaltantes: number;
-  problemasRelaciones: number;
 };
 
 export function RestaurarRespaldoForm() {
@@ -135,11 +134,6 @@ export function RestaurarRespaldoForm() {
           </p>
           {resultado.archivosFaltantes > 0 && (
             <p className="text-amber-700">{resultado.archivosFaltantes} archivo(s) del manifiesto no venían en el ZIP.</p>
-          )}
-          {resultado.problemasRelaciones > 0 && (
-            <p className="text-amber-700">
-              {resultado.problemasRelaciones} registro(s) apuntan a datos que no existen en la copia; revise la información.
-            </p>
           )}
           <p className="mt-1">Si cambió su usuario o clave en la copia, cierre sesión y vuelva a entrar.</p>
         </div>

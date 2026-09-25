@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
 }
 
 model Usuario {
@@ -27,7 +27,7 @@ model Usuario {
   // "vacío = todos") para que no haya ambigüedad entre "sin configurar" y
   // "sin acceso a nada"; los usuarios nuevos y los ya existentes (vía
   // migración) parten con todos los módulos marcados.
-  modulosPermitidos String         @default("[]")
+  modulosPermitidos String         @default("[]") @db.VarChar(2000)
   peticionesPqrs    PeticionPqrs[]
   visitas           Visita[]
 }
@@ -39,7 +39,7 @@ model DatosEmpresa {
   nit                      String    @default("")
   razonSocial              String    @default("")
   nombreComercial          String?
-  direccion                String?
+  direccion                String? @db.VarChar(500)
   ciudad                   String?
   telefono                 String?
   correo                   String?
@@ -63,7 +63,7 @@ model DatosEmpresa {
 model Esquema {
   id           String          @id @default(cuid())
   nombre       String          @unique
-  descripcion  String?
+  descripcion  String? @db.Text
   modulos      ModuloEsquema[]
   visitas      Visita[]
   plantillas   Plantilla[]
@@ -93,12 +93,14 @@ model Plantilla {
   // Bloque de texto enriquecido (título, objetivo, criterios de evaluación,
   // etc.) que va debajo de la línea de NIT/correo/versión y antes de los
   // módulos. Se guarda como JSON de párrafos: [{ texto: [{t,b,i,u}], lista }]
-  descripcionVisitaJson String    @default("[]")
+  descripcionVisitaJson String    @default("[]") @db.VarChar(8000)
   // Diseño del formato: colores/márgenes (globales a la plantilla) y, por
   // cada esquema vinculado, qué módulos/preguntas se muestran y en qué orden
   // (independiente del orden real usado en Tabulación). JSON, ver
   // web/src/lib/plantillaConfig.ts.
-  configJson            String    @default("{}")
+  // Sin valor por defecto en la base (MySQL no lo permite en textos largos):
+  // quien crea la plantilla debe enviar "{}".
+  configJson            String    @db.MediumText
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 }
@@ -110,7 +112,7 @@ model ModuloEsquema {
   esquema     Esquema    @relation(fields: [esquemaId], references: [id], onDelete: Cascade)
   esquemaId   String
   nombre      String
-  descripcion String?
+  descripcion String? @db.Text
   orden       Int        @default(0)
   preguntas   Pregunta[]
   createdAt   DateTime   @default(now())
@@ -135,13 +137,13 @@ model Pregunta {
   id                      String        @id @default(cuid())
   modulo                  ModuloEsquema @relation(fields: [moduloId], references: [id], onDelete: Cascade)
   moduloId                String
-  texto                   String
+  texto                   String @db.Text
   clase                   String
   padre                   Pregunta?     @relation("SubPreguntas", fields: [padreId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   padreId                 String?
   subPreguntas            Pregunta[]    @relation("SubPreguntas")
   tipo                    String
-  opciones                String // JSON-encoded string[] (SQLite no soporta arrays nativos)
+  opciones                String @db.Text // JSON-encoded string[]
   naturalezaOpciones      String        @default("CUALITATIVA")
   validacion              String        @default("NINGUNA")
   obligatoria             Boolean       @default(true)
@@ -161,11 +163,11 @@ model Pregunta {
   // respuesta de esta pregunta principal es exactamente `saltarSiRespuesta`,
   // el flujo salta directo a `saltarHastaPregunta`, rellenando las preguntas
   // principales que quedan en medio con `saltarRellenarCon`.
-  saltarSiRespuesta     String?
+  saltarSiRespuesta     String? @db.Text
   saltarHastaPregunta   Pregunta?  @relation("SaltoCondicional", fields: [saltarHastaPreguntaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   saltarHastaPreguntaId String?
   saltosQueApuntanAqui  Pregunta[] @relation("SaltoCondicional")
-  saltarRellenarCon     String?
+  saltarRellenarCon     String? @db.Text
 
   respuestas Respuesta[]
 
@@ -246,7 +248,7 @@ model Institucion {
   // tener las 3 a la vez, así que tiposRacion es un JSON-encoded string[]
   // (ej. ["RPS","RI","CCT"]) — SQLite no soporta arrays nativos.
   habilitadaPae Boolean       @default(true)
-  tiposRacion   String        @default("[]")
+  tiposRacion   String        @default("[]") @db.VarChar(2000)
   sedes         Sede[]
   actasCaes     ActaCaes[]
   laboratorios  Laboratorio[]
@@ -263,7 +265,7 @@ model Sede {
   // Misma idea que en Institucion: una sede puede habilitarse aparte y
   // recibir cualquier combinación de RPS/RI/CCT.
   habilitadaPae Boolean       @default(true)
-  tiposRacion   String        @default("[]")
+  tiposRacion   String        @default("[]") @db.VarChar(2000)
   laboratorios  Laboratorio[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -304,7 +306,7 @@ model ActaCaes {
   institucionId String
   fecha         DateTime
   archivoUrl    String
-  archivoNombre String
+  archivoNombre String @db.VarChar(500)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -336,9 +338,9 @@ model Laboratorio {
   nombreLaboratorio String
   resultado         String // "FAVORABLE" | "DESFAVORABLE"
   fechaResultado    DateTime
-  observaciones     String?
+  observaciones     String? @db.Text
   archivoUrl        String
-  archivoNombre     String
+  archivoNombre     String @db.VarChar(500)
   detalles          DetalleMuestraLaboratorio[]
   createdAt         DateTime                    @default(now())
   updatedAt         DateTime                    @updatedAt
@@ -398,7 +400,7 @@ model Respuesta {
   visitaId   String
   pregunta   Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
   preguntaId String
-  valor      String?
+  valor      String? @db.Text
   archivoUrl String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -420,11 +422,11 @@ model PeticionPqrs {
   fechaRadicado   DateTime
   peticionario    String
   tipoPeticion    String // "PETICION" | "QUEJA" | "RECLAMO" | "SUGERENCIA"
-  asunto          String
+  asunto          String @db.Text
   responsable     Usuario        @relation(fields: [responsableId], references: [id])
   responsableId   String
   archivoUrl      String
-  archivoNombre   String
+  archivoNombre   String @db.VarChar(500)
   respuesta       RespuestaPqrs?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -436,7 +438,7 @@ model RespuestaPqrs {
   peticionId      String       @unique
   radicadoSalida  String       @unique
   fechaRadicado   DateTime
-  texto           String
+  texto           String @db.MediumText
   // Último documento generado a partir de `texto`; se regenera cada vez que
   // se guarda un cambio en la respuesta.
   documentoUrl    String?
@@ -460,13 +462,13 @@ model Auditoria {
   tipo        String
   modulo      String?
   accion      String
-  descripcion String
+  descripcion String @db.Text
   metodo      String?
-  ruta        String?
+  ruta        String? @db.VarChar(500)
   estado      Int?
   exito       Boolean  @default(true)
   ip          String?
-  agente      String?
+  agente      String? @db.VarChar(300)
 
   @@index([fecha])
   @@index([usuarioId])

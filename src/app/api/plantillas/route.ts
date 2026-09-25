@@ -32,6 +32,7 @@ async function manejarPOST(request: NextRequest) {
     data: {
       nombre,
       tipo,
+      configJson: "{}",
       ...(esquemaIds.length > 0 ? { esquemas: { connect: esquemaIds.map((id: string) => ({ id })) } } : {}),
     },
     include: { esquemas: { select: { id: true, nombre: true } } },
