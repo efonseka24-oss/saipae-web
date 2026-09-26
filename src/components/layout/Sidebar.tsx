@@ -17,6 +17,7 @@ import {
   MapPinned,
   Users2,
   FlaskConical,
+  CalendarDays,
 } from "lucide-react";
 import { MODULOS, type Modulo, type ModuloId } from "@/lib/modulos";
 import clsx from "clsx";
@@ -24,6 +25,7 @@ import clsx from "clsx";
 const ICONOS: Record<Modulo["icono"], React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutGrid,
   tabulacion: ClipboardList,
+  cronograma: CalendarDays,
   formatos: FileText,
   plantillas: LayoutTemplate,
   informes: BarChart3,

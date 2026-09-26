@@ -122,6 +122,7 @@ const MODULOS_API: Record<string, string> = {
   administrador: "Administrador",
   usuarios: "Administrador",
   caes: "CAES",
+  cronograma: "Cronograma de Visitas",
   dashboard: "Dashboard",
   "editor-formatos": "Editor de formatos",
   empresa: "Datos de la Empresa",

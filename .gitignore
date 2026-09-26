@@ -48,3 +48,6 @@ next-env.d.ts
 /public/generados/*
 !/public/generados/.gitkeep
 informe_texto.txt
+
+# Copias automáticas antes de restaurar (se crean al probar en local)
+/data

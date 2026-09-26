@@ -12,6 +12,7 @@
 export type ModuloId =
   | "dashboard"
   | "tabulacion"
+  | "cronograma"
   | "formatos"
   | "plantillas"
   | "informes"
@@ -30,6 +31,7 @@ export type Modulo = {
   icono:
     | "dashboard"
     | "tabulacion"
+    | "cronograma"
     | "formatos"
     | "plantillas"
     | "informes"
@@ -46,6 +48,7 @@ export type Modulo = {
 export const MODULOS: Modulo[] = [
   { id: "dashboard", href: "/dashboard", etiqueta: "Dashboard General", icono: "dashboard", implementado: true },
   { id: "tabulacion", href: "/tabulacion", etiqueta: "Tabulación de Encuestas", icono: "tabulacion", implementado: true },
+  { id: "cronograma", href: "/cronograma", etiqueta: "Cronograma de Visitas", icono: "cronograma", implementado: true },
   { id: "formatos", href: "/formatos", etiqueta: "Generar Formatos", icono: "formatos", implementado: true },
   { id: "plantillas", href: "/plantillas", etiqueta: "Plantillas de Formatos", icono: "plantillas", implementado: true },
   { id: "informes", href: "/informes", etiqueta: "Generar Informes", icono: "informes", implementado: true },

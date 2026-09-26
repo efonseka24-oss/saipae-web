@@ -7,29 +7,31 @@ datasource db {
 }
 
 model Usuario {
-  id                String         @id @default(cuid())
-  usuario           String         @unique
-  clave             String
-  nombre            String
+  id                        String             @id @default(cuid())
+  usuario                   String             @unique
+  clave                     String
+  nombre                    String
   // Código de verificación para reiniciar la clave sin sesión iniciada.
-  cedula            String         @unique @default("")
+  cedula                    String             @unique @default("")
   // Si es false, el usuario no puede iniciar sesión (lo controla el administrador).
-  activo            Boolean        @default(true)
+  activo                    Boolean            @default(true)
   // Datos personales usados como responsable de respuestas PQRS: cargo
   // impreso y firma escaneada que se insertan en la carta generada.
-  cargo             String?
-  firmaUrl          String?
+  cargo                     String?
+  firmaUrl                  String?
   // Correo del usuario: la app móvil lo ofrece en la pregunta "correo del
   // interventor" y con él cada visita enviada queda unida a su usuario.
-  correo            String?        @unique
+  correo                    String?            @unique
   // Módulos del panel que puede ver este usuario (JSON-encoded string[] de
   // ModuloId, ver web/src/lib/modulos.ts). Se guarda la lista explícita (no
   // "vacío = todos") para que no haya ambigüedad entre "sin configurar" y
   // "sin acceso a nada"; los usuarios nuevos y los ya existentes (vía
   // migración) parten con todos los módulos marcados.
-  modulosPermitidos String         @default("[]") @db.VarChar(2000)
-  peticionesPqrs    PeticionPqrs[]
-  visitas           Visita[]
+  modulosPermitidos         String             @default("[]") @db.VarChar(2000)
+  peticionesPqrs            PeticionPqrs[]
+  visitas                   Visita[]
+  cronogramaComoInterventor CronogramaVisita[] @relation("CronogramaInterventor")
+  cronogramaComoSupervisor  CronogramaVisita[] @relation("CronogramaSupervisor")
 }
 
 // Datos de la empresa dueña del sistema (registro único / singleton: siempre
@@ -39,7 +41,7 @@ model DatosEmpresa {
   nit                      String    @default("")
   razonSocial              String    @default("")
   nombreComercial          String?
-  direccion                String? @db.VarChar(500)
+  direccion                String?   @db.VarChar(500)
   ciudad                   String?
   telefono                 String?
   correo                   String?
@@ -61,15 +63,16 @@ model DatosEmpresa {
 }
 
 model Esquema {
-  id           String          @id @default(cuid())
-  nombre       String          @unique
-  descripcion  String? @db.Text
-  modulos      ModuloEsquema[]
-  visitas      Visita[]
-  plantillas   Plantilla[]
-  laboratorios Laboratorio[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id                String             @id @default(cuid())
+  nombre            String             @unique
+  descripcion       String?            @db.Text
+  modulos           ModuloEsquema[]
+  visitas           Visita[]
+  plantillas        Plantilla[]
+  laboratorios      Laboratorio[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cronogramaVisitas CronogramaVisita[]
 }
 
 // Configuración editable del formato de informe (Word). Una plantilla puede
@@ -112,7 +115,7 @@ model ModuloEsquema {
   esquema     Esquema    @relation(fields: [esquemaId], references: [id], onDelete: Cascade)
   esquemaId   String
   nombre      String
-  descripcion String? @db.Text
+  descripcion String?    @db.Text
   orden       Int        @default(0)
   preguntas   Pregunta[]
   createdAt   DateTime   @default(now())
@@ -137,13 +140,13 @@ model Pregunta {
   id                      String        @id @default(cuid())
   modulo                  ModuloEsquema @relation(fields: [moduloId], references: [id], onDelete: Cascade)
   moduloId                String
-  texto                   String @db.Text
+  texto                   String        @db.Text
   clase                   String
   padre                   Pregunta?     @relation("SubPreguntas", fields: [padreId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   padreId                 String?
   subPreguntas            Pregunta[]    @relation("SubPreguntas")
   tipo                    String
-  opciones                String @db.Text // JSON-encoded string[]
+  opciones                String        @db.Text // JSON-encoded string[]
   naturalezaOpciones      String        @default("CUALITATIVA")
   validacion              String        @default("NINGUNA")
   obligatoria             Boolean       @default(true)
@@ -163,11 +166,11 @@ model Pregunta {
   // respuesta de esta pregunta principal es exactamente `saltarSiRespuesta`,
   // el flujo salta directo a `saltarHastaPregunta`, rellenando las preguntas
   // principales que quedan en medio con `saltarRellenarCon`.
-  saltarSiRespuesta     String? @db.Text
+  saltarSiRespuesta     String?    @db.Text
   saltarHastaPregunta   Pregunta?  @relation("SaltoCondicional", fields: [saltarHastaPreguntaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   saltarHastaPreguntaId String?
   saltosQueApuntanAqui  Pregunta[] @relation("SaltoCondicional")
-  saltarRellenarCon     String? @db.Text
+  saltarRellenarCon     String?    @db.Text
 
   respuestas Respuesta[]
 
@@ -212,84 +215,90 @@ model Lote {
 }
 
 model Zode {
-  id           String        @id @default(cuid())
-  nombre       String
-  lote         Lote          @relation(fields: [loteId], references: [id])
-  loteId       String
-  municipios   Municipio[]
-  operadores   Operador[]
-  laboratorios Laboratorio[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                String             @id @default(cuid())
+  nombre            String
+  lote              Lote               @relation(fields: [loteId], references: [id])
+  loteId            String
+  municipios        Municipio[]
+  operadores        Operador[]
+  laboratorios      Laboratorio[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cronogramaVisitas CronogramaVisita[]
 
   @@unique([loteId, nombre])
 }
 
 model Municipio {
-  id            String        @id @default(cuid())
-  nombre        String
-  zode          Zode          @relation(fields: [zodeId], references: [id])
-  zodeId        String
-  instituciones Institucion[]
-  laboratorios  Laboratorio[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                String             @id @default(cuid())
+  nombre            String
+  zode              Zode               @relation(fields: [zodeId], references: [id])
+  zodeId            String
+  instituciones     Institucion[]
+  laboratorios      Laboratorio[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cronogramaVisitas CronogramaVisita[]
 
   @@unique([zodeId, nombre])
 }
 
 model Institucion {
-  id            String        @id @default(cuid())
-  numeroDane    String        @unique
-  nombre        String
-  municipio     Municipio     @relation(fields: [municipioId], references: [id])
-  municipioId   String
+  id                String             @id @default(cuid())
+  numeroDane        String             @unique
+  nombre            String
+  municipio         Municipio          @relation(fields: [municipioId], references: [id])
+  municipioId       String
   // Si está habilitada para el PAE y qué tipo(s) de ración recibe. Puede
   // tener las 3 a la vez, así que tiposRacion es un JSON-encoded string[]
   // (ej. ["RPS","RI","CCT"]) — SQLite no soporta arrays nativos.
-  habilitadaPae Boolean       @default(true)
-  tiposRacion   String        @default("[]") @db.VarChar(2000)
-  sedes         Sede[]
-  actasCaes     ActaCaes[]
-  laboratorios  Laboratorio[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  habilitadaPae     Boolean            @default(true)
+  tiposRacion       String             @default("[]") @db.VarChar(2000)
+  sedes             Sede[]
+  actasCaes         ActaCaes[]
+  laboratorios      Laboratorio[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cronogramaVisitas CronogramaVisita[]
 }
 
 model Sede {
-  id            String        @id @default(cuid())
-  numeroDane    String        @unique
-  nombre        String
-  institucion   Institucion   @relation(fields: [institucionId], references: [id])
-  institucionId String
+  id                String             @id @default(cuid())
+  numeroDane        String             @unique
+  nombre            String
+  institucion       Institucion        @relation(fields: [institucionId], references: [id])
+  institucionId     String
   // Misma idea que en Institucion: una sede puede habilitarse aparte y
   // recibir cualquier combinación de RPS/RI/CCT.
-  habilitadaPae Boolean       @default(true)
-  tiposRacion   String        @default("[]") @db.VarChar(2000)
-  laboratorios  Laboratorio[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  habilitadaPae     Boolean            @default(true)
+  tiposRacion       String             @default("[]") @db.VarChar(2000)
+  laboratorios      Laboratorio[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cronogramaVisitas CronogramaVisita[]
 }
 
 model Operador {
-  id                String        @id @default(cuid())
-  nit               String        @unique
+  id                String             @id @default(cuid())
+  nit               String             @unique
   nombreRazonSocial String
-  zode              Zode          @relation(fields: [zodeId], references: [id])
+  zode              Zode               @relation(fields: [zodeId], references: [id])
   zodeId            String
   bodegas           Bodega[]
   laboratorios      Laboratorio[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cronogramaVisitas CronogramaVisita[]
 }
 
 model Bodega {
-  id         String   @id @default(cuid())
-  nombre     String
-  operador   Operador @relation(fields: [operadorId], references: [id])
-  operadorId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                String             @id @default(cuid())
+  nombre            String
+  operador          Operador           @relation(fields: [operadorId], references: [id])
+  operadorId        String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cronogramaVisitas CronogramaVisita[]
 
   @@unique([operadorId, nombre])
 }
@@ -306,7 +315,7 @@ model ActaCaes {
   institucionId String
   fecha         DateTime
   archivoUrl    String
-  archivoNombre String @db.VarChar(500)
+  archivoNombre String      @db.VarChar(500)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -338,9 +347,9 @@ model Laboratorio {
   nombreLaboratorio String
   resultado         String // "FAVORABLE" | "DESFAVORABLE"
   fechaResultado    DateTime
-  observaciones     String? @db.Text
+  observaciones     String?                     @db.Text
   archivoUrl        String
-  archivoNombre     String @db.VarChar(500)
+  archivoNombre     String                      @db.VarChar(500)
   detalles          DetalleMuestraLaboratorio[]
   createdAt         DateTime                    @default(now())
   updatedAt         DateTime                    @updatedAt
@@ -400,7 +409,7 @@ model Respuesta {
   visitaId   String
   pregunta   Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
   preguntaId String
-  valor      String? @db.Text
+  valor      String?  @db.Text
   archivoUrl String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -422,11 +431,11 @@ model PeticionPqrs {
   fechaRadicado   DateTime
   peticionario    String
   tipoPeticion    String // "PETICION" | "QUEJA" | "RECLAMO" | "SUGERENCIA"
-  asunto          String @db.Text
+  asunto          String         @db.Text
   responsable     Usuario        @relation(fields: [responsableId], references: [id])
   responsableId   String
   archivoUrl      String
-  archivoNombre   String @db.VarChar(500)
+  archivoNombre   String         @db.VarChar(500)
   respuesta       RespuestaPqrs?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -438,7 +447,7 @@ model RespuestaPqrs {
   peticionId      String       @unique
   radicadoSalida  String       @unique
   fechaRadicado   DateTime
-  texto           String @db.MediumText
+  texto           String       @db.MediumText
   // Último documento generado a partir de `texto`; se regenera cada vez que
   // se guarda un cambio en la respuesta.
   documentoUrl    String?
@@ -462,15 +471,48 @@ model Auditoria {
   tipo        String
   modulo      String?
   accion      String
-  descripcion String @db.Text
+  descripcion String   @db.Text
   metodo      String?
-  ruta        String? @db.VarChar(500)
+  ruta        String?  @db.VarChar(500)
   estado      Int?
   exito       Boolean  @default(true)
   ip          String?
-  agente      String? @db.VarChar(300)
+  agente      String?  @db.VarChar(300)
 
   @@index([fecha])
   @@index([usuarioId])
   @@index([tipo])
+}
+
+// Módulo Cronograma de Visitas: planeación de visitas con su lugar (datos de
+// Registro), tipo de visita, fechas y responsables. El estado no se guarda:
+// "Realizada" si tiene fecha de realización, "Vencida" si la fecha programada
+// ya pasó sin realizarse, "Programada" en otro caso.
+model CronogramaVisita {
+  id               String       @id @default(cuid())
+  esquema          Esquema?     @relation(fields: [esquemaId], references: [id], onDelete: SetNull)
+  esquemaId        String?
+  zode             Zode         @relation(fields: [zodeId], references: [id])
+  zodeId           String
+  municipio        Municipio    @relation(fields: [municipioId], references: [id])
+  municipioId      String
+  institucion      Institucion? @relation(fields: [institucionId], references: [id], onDelete: SetNull)
+  institucionId    String?
+  sede             Sede?        @relation(fields: [sedeId], references: [id], onDelete: SetNull)
+  sedeId           String?
+  operador         Operador?    @relation(fields: [operadorId], references: [id], onDelete: SetNull)
+  operadorId       String?
+  bodega           Bodega?      @relation(fields: [bodegaId], references: [id], onDelete: SetNull)
+  bodegaId         String?
+  fechaProgramada  DateTime     @db.Date
+  fechaRealizacion DateTime?    @db.Date
+  observaciones    String?      @db.Text
+  interventor      Usuario?     @relation("CronogramaInterventor", fields: [interventorId], references: [id], onDelete: SetNull)
+  interventorId    String?
+  supervisor       Usuario?     @relation("CronogramaSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  supervisorId     String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([fechaProgramada])
 }
