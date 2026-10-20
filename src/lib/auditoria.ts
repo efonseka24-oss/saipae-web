@@ -133,6 +133,7 @@ const MODULOS_API: Record<string, string> = {
   formatos: "Generar Formatos",
   informes: "Generar Informes",
   laboratorios: "Laboratorios",
+  menus: "Esquemas y Preguntas",
   plantillas: "Plantillas de Formatos",
   pqrs: "PQRS",
   registro: "Registro",

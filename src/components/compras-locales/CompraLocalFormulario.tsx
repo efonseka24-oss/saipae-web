@@ -10,9 +10,9 @@ import {
   UNIDADES_COMPRA,
   MAXIMO_DETALLES_COMPRA,
   formatearPesos,
-  leerNumero,
   type DetalleCompraEntrada,
 } from "@/lib/comprasLocales";
+import { leerNumero } from "@/lib/numeros";
 import type { Lote, Zode, Municipio, Operador, CompraLocal } from "@/components/compras-locales/tipos";
 
 const CLASE_CAMPO =

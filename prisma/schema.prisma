@@ -208,6 +208,7 @@ model Lote {
   departamento   Departamento @relation(fields: [departamentoId], references: [id])
   departamentoId String
   zodes          Zode[]
+  menus          MenuPae[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -588,4 +589,36 @@ model DetalleCompraLocal {
   valorUnitario Float
 
   @@unique([compraId, orden])
+}
+
+// ---------------------------------------------------------------------------
+// Menús del PAE (se administran en Esquemas y Preguntas): cada menú tiene su
+// número dentro del lote y puede ser especial para comunidades negras o
+// étnicas; sus alimentos van en DetalleMenuPae. Un mismo número puede existir
+// una vez como menú general y otra como menú étnico en el mismo lote.
+// ---------------------------------------------------------------------------
+model MenuPae {
+  id             String           @id @default(cuid())
+  numero         Int
+  lote           Lote             @relation(fields: [loteId], references: [id])
+  loteId         String
+  especialEtnico Boolean          @default(false)
+  detalles       DetalleMenuPae[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([loteId, numero, especialEtnico])
+}
+
+model DetalleMenuPae {
+  id             String  @id @default(cuid())
+  menu           MenuPae @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  menuId         String
+  orden          Int
+  tipoAlimento   String
+  nombreAlimento String
+  unidad         String
+  cantidad       Float
+
+  @@unique([menuId, orden])
 }

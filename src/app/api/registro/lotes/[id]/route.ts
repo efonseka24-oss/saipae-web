@@ -37,7 +37,7 @@ async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/regi
     await db.lote.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "No se puede eliminar: tiene zodes asociados." }, { status: 409 });
+    return NextResponse.json({ error: "No se puede eliminar: tiene zodes o menús asociados." }, { status: 409 });
   }
 }
 

@@ -3,18 +3,27 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { NuevoEsquemaForm } from "@/components/esquemas/NuevoEsquemaForm";
 import { FilaEsquema } from "@/components/esquemas/FilaEsquema";
+import { MenusManager } from "@/components/menus/MenusManager";
+import { INCLUIR_MENU } from "@/lib/menusServidor";
 
 export default async function EsquemasPage() {
-  const esquemas = await db.esquema.findMany({
-    orderBy: { nombre: "asc" },
-    include: { _count: { select: { modulos: true } } },
-  });
+  const [esquemas, menus, lotes] = await Promise.all([
+    db.esquema.findMany({
+      orderBy: { nombre: "asc" },
+      include: { _count: { select: { modulos: true } } },
+    }),
+    db.menuPae.findMany({
+      orderBy: [{ lote: { nombre: "asc" } }, { especialEtnico: "asc" }, { numero: "asc" }],
+      include: INCLUIR_MENU,
+    }),
+    db.lote.findMany({ orderBy: { nombre: "asc" }, select: { id: true, nombre: true, departamento: { select: { nombre: true } } } }),
+  ]);
 
   return (
     <div>
       <PageHeader
         titulo="Esquemas y Preguntas"
-        descripcion="Define los esquemas de visita (RPS, RI, CCT, Bodega, ...), sus módulos y preguntas."
+        descripcion="Define los esquemas de visita (RPS, RI, CCT, Bodega, ...), sus módulos y preguntas, y más abajo los menús del PAE."
         acciones={<NuevoEsquemaForm />}
       />
 
@@ -44,6 +53,10 @@ export default async function EsquemasPage() {
           </table>
         </div>
       </Card>
+
+      <div className="mt-10">
+        <MenusManager menus={menus} lotes={lotes} />
+      </div>
     </div>
   );
 }

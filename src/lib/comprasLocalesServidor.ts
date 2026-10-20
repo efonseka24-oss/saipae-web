@@ -2,7 +2,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { db } from "@/lib/db";
-import { esTipoProveedor, leerNumero, MAXIMO_DETALLES_COMPRA } from "@/lib/comprasLocales";
+import { esTipoProveedor, MAXIMO_DETALLES_COMPRA } from "@/lib/comprasLocales";
+import { leerNumero } from "@/lib/numeros";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 const TIPOS_ARCHIVO_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png"];
