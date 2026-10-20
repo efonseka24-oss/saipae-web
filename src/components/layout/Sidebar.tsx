@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Building2,
   LayoutGrid,
   ClipboardList,
   FileText,
@@ -18,6 +18,8 @@ import {
   Users2,
   FlaskConical,
   CalendarDays,
+  GraduationCap,
+  ShoppingBasket,
 } from "lucide-react";
 import { MODULOS, type Modulo, type ModuloId } from "@/lib/modulos";
 import clsx from "clsx";
@@ -36,6 +38,8 @@ const ICONOS: Record<Modulo["icono"], React.ComponentType<{ className?: string }
   registro: MapPinned,
   caes: Users2,
   laboratorios: FlaskConical,
+  simat: GraduationCap,
+  comprasLocales: ShoppingBasket,
 };
 
 export function Sidebar({ nombreUsuario, modulosPermitidos }: { nombreUsuario: string; modulosPermitidos: ModuloId[] }) {
@@ -45,11 +49,9 @@ export function Sidebar({ nombreUsuario, modulosPermitidos }: { nombreUsuario: s
   return (
     <aside className="flex h-full w-72 flex-col bg-[#0b1220] text-slate-300">
       <div className="flex items-center gap-3 px-5 py-6">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600">
-          <Building2 className="h-5 w-5 text-white" />
-        </div>
+        <Image src="/logo-sivae.png" alt="SIVAE" width={44} height={44} className="h-11 w-11 shrink-0 rounded-full bg-white" />
         <div>
-          <p className="text-base font-bold leading-tight text-white">SAIPAE</p>
+          <p className="text-base font-bold leading-tight text-white">SIVAE</p>
           <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
             Panel Administrativo
           </p>

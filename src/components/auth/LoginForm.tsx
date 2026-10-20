@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 
 export function LoginForm() {
@@ -45,11 +45,9 @@ export function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
-            <Building2 className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">SAIPAE</h1>
-          <p className="text-sm text-slate-500">Panel Administrativo</p>
+          <Image src="/logo-sivae.png" alt="SIVAE" width={112} height={112} priority className="mb-2 h-28 w-28" />
+          <h1 className="text-xl font-bold text-slate-900">SIVAE</h1>
+          <p className="text-sm text-slate-500">Sistema de Interventoría y Vigilancia de la Alimentación Escolar</p>
         </div>
 
         <form onSubmit={manejarEnvio} className="space-y-4">

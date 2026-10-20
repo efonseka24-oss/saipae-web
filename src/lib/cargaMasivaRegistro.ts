@@ -36,7 +36,7 @@ function normalizarEncabezado(texto: string): string {
 // Excel en español (Colombia) usa la coma como separador decimal, así que al
 // exportar "CSV" en realidad separa las columnas con ";" en vez de ",". Se
 // detecta cuál usa el archivo mirando su primera línea, para aceptar ambos.
-function detectarDelimitador(contenido: string): "," | ";" {
+export function detectarDelimitador(contenido: string): "," | ";" {
   const primeraLinea = contenido.split(/\r?\n/, 1)[0] ?? "";
   const comas = (primeraLinea.match(/,/g) ?? []).length;
   const puntoYComas = (primeraLinea.match(/;/g) ?? []).length;

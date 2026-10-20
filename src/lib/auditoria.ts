@@ -122,6 +122,7 @@ const MODULOS_API: Record<string, string> = {
   administrador: "Administrador",
   usuarios: "Administrador",
   caes: "CAES",
+  "compras-locales": "Compras Locales",
   cronograma: "Cronograma de Visitas",
   dashboard: "Dashboard",
   "editor-formatos": "Editor de formatos",
@@ -135,6 +136,7 @@ const MODULOS_API: Record<string, string> = {
   plantillas: "Plantillas de Formatos",
   pqrs: "PQRS",
   registro: "Registro",
+  simat: "SIMAT",
   tabulacion: "Tabulación de Encuestas",
   visitas: "Tabulación de Encuestas",
 };

@@ -41,7 +41,7 @@ async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/regi
     await db.municipio.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "No se puede eliminar: tiene instituciones asociadas." }, { status: 409 });
+    return NextResponse.json({ error: "No se puede eliminar: tiene instituciones, estudiantes SIMAT o compras locales asociadas." }, { status: 409 });
   }
 }
 

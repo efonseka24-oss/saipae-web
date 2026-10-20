@@ -22,7 +22,9 @@ export type ModuloId =
   | "empresa"
   | "registro"
   | "caes"
-  | "laboratorios";
+  | "laboratorios"
+  | "simat"
+  | "comprasLocales";
 
 export type Modulo = {
   id: ModuloId;
@@ -41,7 +43,9 @@ export type Modulo = {
     | "empresa"
     | "registro"
     | "caes"
-    | "laboratorios";
+    | "laboratorios"
+  | "simat"
+  | "comprasLocales";
   implementado: boolean;
 };
 
@@ -58,5 +62,7 @@ export const MODULOS: Modulo[] = [
   { id: "registro", href: "/registro", etiqueta: "Registro", icono: "registro", implementado: true },
   { id: "caes", href: "/caes", etiqueta: "CAES", icono: "caes", implementado: true },
   { id: "laboratorios", href: "/laboratorios", etiqueta: "Laboratorios", icono: "laboratorios", implementado: true },
+  { id: "simat", href: "/simat", etiqueta: "SIMAT", icono: "simat", implementado: true },
+  { id: "comprasLocales", href: "/compras-locales", etiqueta: "Compras Locales", icono: "comprasLocales", implementado: true },
   { id: "administrador", href: "/administrador", etiqueta: "Administrador", icono: "administrador", implementado: true },
 ];

@@ -74,7 +74,7 @@ export function nombreArchivoRespaldo(fecha = new Date()): string {
     hourCycle: "h23",
   }).formatToParts(fecha);
   const p = (tipo: string) => partes.find((x) => x.type === tipo)?.value ?? "";
-  return `saipae-respaldo-${p("year")}-${p("month")}-${p("day")}_${p("hour")}${p("minute")}.zip`;
+  return `sivae-respaldo-${p("year")}-${p("month")}-${p("day")}_${p("hour")}${p("minute")}.zip`;
 }
 
 // Todos los archivos bajo `raiz`, como rutas relativas con "/".
@@ -331,8 +331,8 @@ export function crearStreamRespaldo(creadoPor: string): ReadableStream<Uint8Arra
 }
 
 function textoLeeme(manifiesto: Manifiesto, totalVisitas: number): string {
-  return `COPIA DE SEGURIDAD SAIPAE
-=========================
+  return `COPIA DE SEGURIDAD SIVAE
+========================
 
 Creada: ${manifiesto.creadoEn} (hora UTC)
 Creada por: ${manifiesto.creadoPor}
@@ -460,11 +460,11 @@ export async function restaurarRespaldo(zipRuta: string): Promise<ResultadoResta
 
     const rutaManifiesto = path.join(temporal, "manifiesto.json");
     if (!fs.existsSync(rutaManifiesto)) {
-      throw new ErrorRespaldo("El archivo no es una copia de seguridad de SAIPAE (le falta el manifiesto).");
+      throw new ErrorRespaldo("El archivo no es una copia de seguridad de SIVAE (le falta el manifiesto).");
     }
     const manifiesto = JSON.parse(fs.readFileSync(rutaManifiesto, "utf8")) as Manifiesto;
     if (manifiesto.formato !== FORMATO_RESPALDO) {
-      throw new ErrorRespaldo("El archivo no es una copia de seguridad de SAIPAE.");
+      throw new ErrorRespaldo("El archivo no es una copia de seguridad de SIVAE.");
     }
     if (manifiesto.version > VERSION_FORMATO) {
       throw new ErrorRespaldo("La copia se hizo con una versión más nueva del sistema. Actualice el servidor antes de restaurarla.");

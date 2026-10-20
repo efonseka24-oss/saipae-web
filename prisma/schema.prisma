@@ -222,6 +222,7 @@ model Zode {
   municipios        Municipio[]
   operadores        Operador[]
   laboratorios      Laboratorio[]
+  comprasLocales    CompraLocal[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   cronogramaVisitas CronogramaVisita[]
@@ -236,6 +237,8 @@ model Municipio {
   zodeId            String
   instituciones     Institucion[]
   laboratorios      Laboratorio[]
+  estudiantesSimat  EstudianteSimat[]
+  comprasLocales    CompraLocal[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   cronogramaVisitas CronogramaVisita[]
@@ -257,6 +260,7 @@ model Institucion {
   sedes             Sede[]
   actasCaes         ActaCaes[]
   laboratorios      Laboratorio[]
+  estudiantesSimat  EstudianteSimat[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   cronogramaVisitas CronogramaVisita[]
@@ -273,6 +277,7 @@ model Sede {
   habilitadaPae     Boolean            @default(true)
   tiposRacion       String             @default("[]") @db.VarChar(2000)
   laboratorios      Laboratorio[]
+  estudiantesSimat  EstudianteSimat[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   cronogramaVisitas CronogramaVisita[]
@@ -286,6 +291,7 @@ model Operador {
   zodeId            String
   bodegas           Bodega[]
   laboratorios      Laboratorio[]
+  comprasLocales    CompraLocal[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   cronogramaVisitas CronogramaVisita[]
@@ -515,4 +521,71 @@ model CronogramaVisita {
   updatedAt        DateTime     @updatedAt
 
   @@index([fechaProgramada])
+}
+
+// ---------------------------------------------------------------------------
+// Módulo SIMAT: relación de estudiantes con derecho a recibir la alimentación
+// escolar (tomada del Sistema Integrado de Matrícula). Se ubica por
+// Municipio → Institución → Sede; Zode y Lote no se guardan aparte porque se
+// derivan del municipio (Municipio.zode.lote).
+// ---------------------------------------------------------------------------
+model EstudianteSimat {
+  id              String      @id @default(cuid())
+  // ID del estudiante en el SIMAT: identifica el registro en la carga masiva.
+  idSimat         String      @unique
+  numeroDocumento String
+  nombre          String
+  municipio       Municipio   @relation(fields: [municipioId], references: [id])
+  municipioId     String
+  institucion     Institucion @relation(fields: [institucionId], references: [id])
+  institucionId   String
+  sede            Sede        @relation(fields: [sedeId], references: [id])
+  sedeId          String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([numeroDocumento])
+  @@index([nombre])
+}
+
+// ---------------------------------------------------------------------------
+// Módulo Compras Locales: compras de materia prima a proveedores locales
+// (pequeños productores, organizaciones de la economía campesina, etc.).
+// Cada compra tiene sus líneas de producto; el valor total se calcula de las
+// líneas. El soporte (factura) es opcional.
+// ---------------------------------------------------------------------------
+model CompraLocal {
+  id                 String               @id @default(cuid())
+  zode               Zode                 @relation(fields: [zodeId], references: [id])
+  zodeId             String
+  municipio          Municipio            @relation(fields: [municipioId], references: [id])
+  municipioId        String
+  operador           Operador?            @relation(fields: [operadorId], references: [id], onDelete: SetNull)
+  operadorId         String?
+  fechaCompra        DateTime             @db.Date
+  proveedorNombre    String
+  proveedorDocumento String
+  tipoProveedor      String // ver TIPOS_PROVEEDOR en web/src/lib/comprasLocales.ts
+  numeroFactura      String?
+  observaciones      String?              @db.Text
+  archivoUrl         String?
+  archivoNombre      String?              @db.VarChar(500)
+  detalles           DetalleCompraLocal[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([fechaCompra])
+}
+
+model DetalleCompraLocal {
+  id            String      @id @default(cuid())
+  compra        CompraLocal @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  compraId      String
+  orden         Int
+  producto      String
+  cantidad      Float
+  unidad        String
+  valorUnitario Float
+
+  @@unique([compraId, orden])
 }

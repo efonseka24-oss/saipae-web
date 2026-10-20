@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SAIPAE - Panel Administrativo",
-  description: "Panel administrativo de SAIPAE",
+  title: "SIVAE - Panel Administrativo",
+  description: "Panel administrativo de SIVAE - Sistema de Interventoría y Vigilancia de la Alimentación Escolar",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -64,8 +64,15 @@ async function manejarDELETE(_request: NextRequest, ctx: RouteContext<"/api/regi
   if (!sesion) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const { id } = await ctx.params;
-  await db.sede.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await db.sede.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json(
+      { error: "No se puede eliminar: la sede tiene registros asociados (estudiantes SIMAT, laboratorios o cronograma)." },
+      { status: 409 }
+    );
+  }
 }
 
 export const PATCH = conAuditoria(manejarPATCH);
