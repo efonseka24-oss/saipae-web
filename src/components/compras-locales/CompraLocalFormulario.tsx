@@ -10,6 +10,7 @@ import {
   UNIDADES_COMPRA,
   MAXIMO_DETALLES_COMPRA,
   formatearPesos,
+  leerNumero,
   type DetalleCompraEntrada,
 } from "@/lib/comprasLocales";
 import type { Lote, Zode, Municipio, Operador, CompraLocal } from "@/components/compras-locales/tipos";
@@ -20,8 +21,7 @@ const CLASE_CAMPO =
 const FILA_VACIA: DetalleCompraEntrada = { producto: "", cantidad: "", unidad: "kg", valorUnitario: "" };
 
 function numero(texto: string): number {
-  const t = texto.replace(/\s/g, "");
-  return Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t) || 0;
+  return leerNumero(texto) || 0;
 }
 
 export function CompraLocalFormulario({

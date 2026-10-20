@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { db } from "@/lib/db";
-import { esTipoProveedor, MAXIMO_DETALLES_COMPRA } from "@/lib/comprasLocales";
+import { esTipoProveedor, leerNumero, MAXIMO_DETALLES_COMPRA } from "@/lib/comprasLocales";
 
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 const TIPOS_ARCHIVO_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png"];
@@ -22,12 +22,8 @@ function texto(valor: unknown): string {
   return typeof valor === "string" ? valor.trim() : "";
 }
 
-// Acepta "1.500,50", "1500.5" o "1500": si hay coma decimal, los puntos son de miles.
 function numero(valor: unknown): number {
-  const t = texto(valor).replace(/\s/g, "");
-  if (!t) return NaN;
-  const normalizado = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
-  return Number(normalizado);
+  return leerNumero(texto(valor));
 }
 
 function parsearDetalles(bruto: FormDataEntryValue | null): { error: string } | { detalles: DetalleValidado[] } {
