@@ -157,3 +157,25 @@ export async function migracionesServidor(): Promise<Set<string>> {
   );
   return new Set(filas.map((f) => f.migration_name));
 }
+
+// Vacía todas las tablas excepto las indicadas (sin distinguir mayúsculas), todo
+// o nada. Devuelve cuántas filas se borraron por tabla.
+export async function vaciarTablasExcepto(conservar: string[]): Promise<Record<string, number>> {
+  const conservadas = new Set(conservar.map((t) => t.toLowerCase()));
+  return db.$transaction(
+    async (tx) => {
+      const borradas: Record<string, number> = {};
+      await tx.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 0");
+      try {
+        for (const tabla of await tablasMysql(tx)) {
+          if (conservadas.has(tabla.toLowerCase())) continue;
+          borradas[tabla] = await tx.$executeRawUnsafe(`DELETE FROM ${identificador(tabla)}`);
+        }
+      } finally {
+        await tx.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 1");
+      }
+      return borradas;
+    },
+    { timeout: 10 * 60 * 1000, maxWait: 60 * 1000 }
+  );
+}

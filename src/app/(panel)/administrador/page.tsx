@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DatabaseBackup, ScrollText } from "lucide-react";
+import { DatabaseBackup, Flag, ScrollText } from "lucide-react";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -34,6 +34,13 @@ export default async function AdministradorPage() {
             >
               <DatabaseBackup className="h-4 w-4" />
               Copia de seguridad
+            </Link>
+            <Link
+              href="/administrador/proyecto"
+              className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+            >
+              <Flag className="h-4 w-4" />
+              Finalizar proyecto
             </Link>
             <NuevoUsuarioForm />
           </div>
