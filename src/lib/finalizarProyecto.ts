@@ -4,10 +4,13 @@
 // empezar un proyecto nuevo.
 //
 // Se conservan los usuarios, los datos de la empresa (con sus fechas de
-// proyecto en blanco), el logo y el membrete, las firmas de los usuarios y la
-// auditoría. Todo lo demás (Registro, esquemas, plantillas, visitas, PQRS,
+// proyecto en blanco), el logo y el membrete, las firmas de los usuarios, las
+// plantillas de los formatos (la tabla Plantilla y los .docx de templates/) y
+// la auditoría. Todo lo demás (Registro, esquemas y preguntas, visitas, PQRS,
 // CAES, laboratorios, compras, cronograma, SIMAT, menús y los archivos que
-// generaron) se borra.
+// generaron) se borra. Como los esquemas se borran, las plantillas quedan sin
+// esquema vinculado (la tabla de vínculos se vacía) hasta que se asocien a los
+// esquemas del proyecto nuevo.
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -25,7 +28,7 @@ const CARPETA_UPLOADS = path.join(process.cwd(), "public", "uploads");
 const CARPETA_GENERADOS = path.join(process.cwd(), "public", "generados");
 // Carpetas de uploads que no pertenecen al proyecto.
 const UPLOADS_CONSERVADOS = new Set(["firmas"]);
-const TABLAS_CONSERVADAS = ["Usuario", "DatosEmpresa", "Auditoria", "_prisma_migrations"];
+const TABLAS_CONSERVADAS = ["Usuario", "DatosEmpresa", "Plantilla", "Auditoria", "_prisma_migrations"];
 
 export class ErrorFinalizarProyecto extends Error {}
 

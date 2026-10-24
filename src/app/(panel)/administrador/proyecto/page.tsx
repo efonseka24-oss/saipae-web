@@ -47,10 +47,14 @@ export default async function FinalizarProyectoPage() {
               documentos generados) y se descarga en este equipo. Si la copia falla, <strong>no se borra nada</strong>.
             </li>
             <li>
-              Se borran Registro (zodes, municipios, instituciones, sedes, operadores), esquemas y preguntas, plantillas, visitas, PQRS, CAES,
+              Se borran Registro (zodes, municipios, instituciones, sedes, operadores), esquemas y preguntas, visitas, PQRS, CAES,
               laboratorios, compras locales, cronograma, SIMAT, menús y los archivos que generaron.
             </li>
-            <li>Se conservan los usuarios (con su firma), los datos de la empresa con su logo y membrete, y la auditoría. Las fechas del proyecto quedan en blanco.</li>
+            <li>
+              Se conservan los usuarios (con su firma), los datos de la empresa con su logo y membrete, las plantillas de los formatos y la
+              auditoría. Las fechas del proyecto quedan en blanco. Las plantillas quedan sin esquema vinculado: hay que asociarlas a los
+              esquemas del proyecto nuevo.
+            </li>
           </ol>
           <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
             Esta acción no se puede deshacer desde el sistema. Como los esquemas y las preguntas también se borran, la app móvil no tendrá
