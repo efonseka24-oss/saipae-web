@@ -14,6 +14,7 @@ export const INCLUIR_ESTUDIANTE_SIMAT = {
   },
   institucion: { select: { id: true, nombre: true, numeroDane: true } },
   sede: { select: { id: true, nombre: true, numeroDane: true } },
+  _count: { select: { entregas: true } },
 } as const;
 
 export type DatosEstudianteSimat = {
@@ -59,6 +60,8 @@ export type FiltrosSimat = {
   zodeId?: string;
   municipioId?: string;
   institucionId?: string;
+  // "1" = solo beneficiarios del PAE.
+  pae?: string;
 };
 
 type Parametros = Record<string, string | string[] | undefined>;
@@ -75,11 +78,13 @@ export function leerFiltrosSimat(parametros: Parametros | URLSearchParams): Filt
     zodeId: leer("zodeId"),
     municipioId: leer("municipioId"),
     institucionId: leer("institucionId"),
+    pae: leer("pae") === "1" ? "1" : undefined,
   };
 }
 
 export function whereSimat(filtros: FiltrosSimat): Prisma.EstudianteSimatWhereInput {
   return {
+    ...(filtros.pae ? { beneficiarioPae: true } : {}),
     ...(filtros.institucionId ? { institucionId: filtros.institucionId } : {}),
     ...(filtros.municipioId ? { municipioId: filtros.municipioId } : {}),
     ...(filtros.zodeId ? { municipio: { zodeId: filtros.zodeId } } : {}),
@@ -219,5 +224,155 @@ export async function procesarCargaMasivaSimat(registros: Record<string, string>
     resumen.actualizados += grupo.length;
   }
 
+  return resumen;
+}
+
+// --- Beneficiarios y entregas del PAE (cargas desde Excel o CSV) -----------------
+
+const ALIAS_ESTUDIANTE = {
+  ID: ["ID", "IDSIMAT", "PERID", "IDESTUDIANTE"],
+  DOCUMENTO: ["DOCUMENTO", "NUMERODOCUMENTO", "NRODOCUMENTO", "DOC"],
+  FECHA: ["FECHA", "FECHAENTREGA", "DIA"],
+} as const;
+
+export type ResultadoCargaPae = {
+  totalFilas: number;
+  procesados: number;
+  sinCambios: number;
+  errores: { fila: number; mensaje: string }[];
+};
+
+// Identifica al estudiante de cada fila por ID SIMAT o, si no hay, por documento.
+type EstudiantePae = { id: string; idSimat: string; numeroDocumento: string; beneficiarioPae: boolean };
+type BusquedaEstudiantes = {
+  buscar: (registro: Record<string, string>) => { error: string } | { estudiante: EstudiantePae };
+  colFecha: string | undefined;
+};
+
+async function prepararBusquedaEstudiantes(registros: Record<string, string>[], necesitaFecha: boolean): Promise<{ error: string } | BusquedaEstudiantes> {
+  const encabezados = new Map(Object.keys(registros[0]).map((bruto) => [normalizarEncabezado(bruto), bruto]));
+  const columna = (alias: readonly string[]) => alias.map((a) => encabezados.get(a)).find(Boolean);
+  const colId = columna(ALIAS_ESTUDIANTE.ID);
+  const colDocumento = columna(ALIAS_ESTUDIANTE.DOCUMENTO);
+  const colFecha = columna(ALIAS_ESTUDIANTE.FECHA);
+
+  if (!colId && !colDocumento) return { error: "Faltan columnas en el archivo: ID o DOCUMENTO." };
+  if (necesitaFecha && !colFecha) return { error: "Faltan columnas en el archivo: FECHA." };
+
+  const estudiantes = await db.estudianteSimat.findMany({ select: { id: true, idSimat: true, numeroDocumento: true, beneficiarioPae: true } });
+  const porId = new Map(estudiantes.map((e) => [e.idSimat, e]));
+  const porDocumento = new Map(estudiantes.map((e) => [e.numeroDocumento, e]));
+  const buscar = (registro: Record<string, string>): { error: string } | { estudiante: EstudiantePae } => {
+    const id = colId ? (registro[colId] ?? "").trim() : "";
+    const documento = colDocumento ? (registro[colDocumento] ?? "").trim() : "";
+    if (!id && !documento) return { error: "Falta el ID o el documento del estudiante." };
+    const estudiante = (id && porId.get(id)) || (documento && porDocumento.get(documento)) || null;
+    if (!estudiante) return { error: `El estudiante ${id || documento} no está en el SIMAT.` };
+    return { estudiante };
+  };
+  return { buscar, colFecha };
+}
+
+// Marca como beneficiarios del PAE a los estudiantes del archivo. Con
+// `reemplazar`, los que no vienen en el archivo quedan sin marcar.
+export async function procesarCargaBeneficiarios(
+  registros: Record<string, string>[],
+  reemplazar: boolean,
+): Promise<{ error: string } | ResultadoCargaPae> {
+  if (registros.length === 0) return { error: "El archivo no tiene filas de datos." };
+  const busqueda = await prepararBusquedaEstudiantes(registros, false);
+  if ("error" in busqueda) return busqueda;
+
+  const resumen: ResultadoCargaPae = { totalFilas: registros.length, procesados: 0, sinCambios: 0, errores: [] };
+  const ids = new Set<string>();
+  const porMarcar: string[] = [];
+
+  registros.forEach((registro, indice) => {
+    const resultado = busqueda.buscar(registro);
+    if ("error" in resultado) {
+      resumen.errores.push({ fila: indice + 2, mensaje: resultado.error });
+      return;
+    }
+    const { estudiante } = resultado;
+    if (ids.has(estudiante.id)) return;
+    ids.add(estudiante.id);
+    if (estudiante.beneficiarioPae) resumen.sinCambios += 1;
+    else porMarcar.push(estudiante.id);
+  });
+
+  for (let i = 0; i < porMarcar.length; i += 1000) {
+    const { count } = await db.estudianteSimat.updateMany({ where: { id: { in: porMarcar.slice(i, i + 1000) } }, data: { beneficiarioPae: true } });
+    resumen.procesados += count;
+  }
+
+  if (reemplazar && ids.size > 0) {
+    const vigentes = [...ids];
+    const sobrantes = await db.estudianteSimat.findMany({ where: { beneficiarioPae: true, id: { notIn: vigentes } }, select: { id: true } });
+    for (let i = 0; i < sobrantes.length; i += 1000) {
+      await db.estudianteSimat.updateMany({ where: { id: { in: sobrantes.slice(i, i + 1000).map((s) => s.id) } }, data: { beneficiarioPae: false } });
+    }
+  }
+  return resumen;
+}
+
+// Fecha (solo día) a partir de un texto de Excel/CSV: número de serie de Excel,
+// AAAA-MM-DD o DD/MM/AAAA. Devuelve una fecha en UTC a medianoche, o null.
+function leerFecha(valor: string): Date | null {
+  const t = valor.trim();
+  let anio: number, mes: number, dia: number;
+  if (/^\d{4,6}(\.\d+)?$/.test(t)) {
+    const fecha = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(t)) * 86400000);
+    [anio, mes, dia] = [fecha.getUTCFullYear(), fecha.getUTCMonth() + 1, fecha.getUTCDate()];
+  } else {
+    const iso = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    const latino = t.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})/);
+    if (iso) [anio, mes, dia] = [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+    else if (latino) [dia, mes, anio] = [Number(latino[1]), Number(latino[2]), Number(latino[3])];
+    else return null;
+  }
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+  return fecha.getUTCMonth() === mes - 1 && fecha.getUTCDate() === dia ? fecha : null;
+}
+
+// Registra las entregas del archivo (una fila = un estudiante en un día).
+// Solo se aceptan beneficiarios del PAE y días de lunes a viernes.
+export async function procesarCargaEntregas(registros: Record<string, string>[]): Promise<{ error: string } | ResultadoCargaPae> {
+  if (registros.length === 0) return { error: "El archivo no tiene filas de datos." };
+  const busqueda = await prepararBusquedaEstudiantes(registros, true);
+  if ("error" in busqueda) return busqueda;
+
+  const resumen: ResultadoCargaPae = { totalFilas: registros.length, procesados: 0, sinCambios: 0, errores: [] };
+  const nuevas = new Map<string, { estudianteId: string; fecha: Date }>();
+
+  registros.forEach((registro, indice) => {
+    const numeroFila = indice + 2;
+    const resultado = busqueda.buscar(registro);
+    if ("error" in resultado) {
+      resumen.errores.push({ fila: numeroFila, mensaje: resultado.error });
+      return;
+    }
+    const fecha = leerFecha(registro[busqueda.colFecha!] ?? "");
+    if (!fecha) {
+      resumen.errores.push({ fila: numeroFila, mensaje: "La fecha no es válida (usa AAAA-MM-DD o DD/MM/AAAA)." });
+      return;
+    }
+    const diaSemana = fecha.getUTCDay();
+    if (diaSemana === 0 || diaSemana === 6) {
+      resumen.errores.push({ fila: numeroFila, mensaje: "Las entregas solo se registran de lunes a viernes." });
+      return;
+    }
+    if (!resultado.estudiante.beneficiarioPae) {
+      resumen.errores.push({ fila: numeroFila, mensaje: "El estudiante no está marcado como beneficiario del PAE." });
+      return;
+    }
+    nuevas.set(`${resultado.estudiante.id}|${fecha.getTime()}`, { estudianteId: resultado.estudiante.id, fecha });
+  });
+
+  const lista = [...nuevas.values()];
+  for (let i = 0; i < lista.length; i += 1000) {
+    const { count } = await db.entregaPae.createMany({ data: lista.slice(i, i + 1000), skipDuplicates: true });
+    resumen.procesados += count;
+  }
+  resumen.sinCambios = lista.length - resumen.procesados;
   return resumen;
 }

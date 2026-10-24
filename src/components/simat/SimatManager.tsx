@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { FiltroUbicacion, type ValorFiltroUbicacion } from "@/components/shared/FiltroUbicacion";
 import { EstudianteSimatFormulario, type DatosFormularioSimat } from "@/components/simat/EstudianteSimatFormulario";
 import { CargaMasivaSimat } from "@/components/simat/CargaMasivaSimat";
+import { CargaPae } from "@/components/simat/CargaPae";
 import type { Lote, Zode, Municipio, Institucion, Sede, EstudianteSimat } from "@/components/simat/tipos";
 import type { FiltrosSimat } from "@/lib/simat";
 
@@ -143,6 +144,8 @@ export function SimatManager({
             Nuevo estudiante
           </Button>
           <CargaMasivaSimat />
+          <CargaPae tipo="beneficiarios" />
+          <CargaPae tipo="entregas" />
         </div>
       )}
 
@@ -168,7 +171,7 @@ export function SimatManager({
           municipios={municipios}
           instituciones={instituciones}
           value={ubicacion}
-          onChange={(valor) => aplicarFiltros({ ...valor, q: filtros.q })}
+          onChange={(valor) => aplicarFiltros({ ...valor, q: filtros.q, pae: filtros.pae })}
         />
         <form
           onSubmit={(e) => {
@@ -183,6 +186,10 @@ export function SimatManager({
             placeholder="Buscar por ID, documento o nombre"
             className={`${CLASE_CAMPO} w-full max-w-sm`}
           />
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={Boolean(filtros.pae)} onChange={(e) => aplicarFiltros({ ...filtros, pae: e.target.checked ? "1" : undefined })} />
+            Solo beneficiarios PAE
+          </label>
           <Button type="submit" variante="outline">
             <Search className="h-4 w-4" /> Buscar
           </Button>
@@ -198,6 +205,7 @@ export function SimatManager({
                 <th className="py-2 pr-4">Sede / Institución</th>
                 <th className="py-2 pr-4">Municipio</th>
                 <th className="py-2 pr-4">Zode / Lote</th>
+                <th className="py-2 pr-4">PAE</th>
                 <th className="py-2 pr-4">Acciones</th>
               </tr>
             </thead>
@@ -218,6 +226,16 @@ export function SimatManager({
                     <span className="text-xs text-slate-400">{e.municipio.zode.lote.nombre}</span>
                   </td>
                   <td className="py-3 pr-4">
+                    {e.beneficiarioPae ? (
+                      <>
+                        <Badge variante="green">Beneficiario</Badge>
+                        <p className="mt-1 text-xs text-slate-500">{e._count.entregas.toLocaleString("es-CO")} entrega(s)</p>
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-400">No</span>
+                    )}
+                  </td>
+                  <td className="py-3 pr-4">
                     <div className="flex gap-2">
                       <button
                         onClick={() => setModo({ tipo: "editar", estudiante: e })}
@@ -234,7 +252,7 @@ export function SimatManager({
               ))}
               {estudiantes.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-sm text-slate-400">
+                  <td colSpan={8} className="py-8 text-center text-sm text-slate-400">
                     {totalGeneral === 0 ? "No hay estudiantes registrados todavía." : "Ningún estudiante coincide con el filtro."}
                   </td>
                 </tr>

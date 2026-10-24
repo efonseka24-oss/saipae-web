@@ -15,4 +15,6 @@ export type EstudianteSimat = {
   institucion: { id: string; nombre: string; numeroDane: string };
   sedeId: string;
   sede: { id: string; nombre: string; numeroDane: string };
+  beneficiarioPae: boolean;
+  _count: { entregas: number };
 };

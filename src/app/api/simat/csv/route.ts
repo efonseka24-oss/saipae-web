@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     return /[";\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
   };
   const filas = [
-    ["ID", "DOCUMENTO", "NOMBRE", "LOTE", "ZODE", "MUNICIPIO", "INSTITUCION", "DANE IE", "SEDE", "DANE SEDE"],
+    ["ID", "DOCUMENTO", "NOMBRE", "LOTE", "ZODE", "MUNICIPIO", "INSTITUCION", "DANE IE", "SEDE", "DANE SEDE", "BENEFICIARIO PAE", "ENTREGAS"],
     ...estudiantes.map((e) => [
       e.idSimat,
       e.numeroDocumento,
@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
       e.institucion.numeroDane,
       e.sede.nombre,
       e.sede.numeroDane,
+      e.beneficiarioPae ? "SI" : "NO",
+      e._count.entregas,
     ]),
   ];
   const contenido = "﻿" + filas.map((f) => f.map(celda).join(";")).join("\r\n");

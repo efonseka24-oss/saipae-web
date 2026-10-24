@@ -542,11 +542,29 @@ model EstudianteSimat {
   institucionId   String
   sede            Sede        @relation(fields: [sedeId], references: [id])
   sedeId          String
+  // Si el estudiante es beneficiario del PAE (se marca con el Excel de
+  // beneficiarios) y las entregas diarias que se le han registrado.
+  beneficiarioPae Boolean     @default(false)
+  entregas        EntregaPae[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
   @@index([numeroDocumento])
   @@index([nombre])
+  @@index([beneficiarioPae])
+}
+
+// Entrega de la ración a un estudiante beneficiario en un día hábil
+// (lunes a viernes). Una sola entrega por estudiante y día.
+model EntregaPae {
+  id           String          @id @default(cuid())
+  estudiante   EstudianteSimat @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+  estudianteId String
+  fecha        DateTime        @db.Date
+  createdAt    DateTime        @default(now())
+
+  @@unique([estudianteId, fecha])
+  @@index([fecha])
 }
 
 // ---------------------------------------------------------------------------
